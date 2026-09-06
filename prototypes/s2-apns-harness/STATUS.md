@@ -1,40 +1,34 @@
 STATUS: BLOCKED
 
-Last updated: 2026-09-06 (day 0, after orchestrator review)
-Summary: Harness is built, tested (33 unit tests), verified against the APNs
-sandbox with a throwaway key, and its S3 token-file reader is verified against
-S3's real template format. Every code path that does not require a real
-credential is done. Blocked only on the real `.p8` + a device token to send a
-successful push and document the token/topic failure modes.
+Last updated: 2026-09-06 (day 0, after .p8 arrived)
+Summary: Harness is built, tested (33 unit tests), and now verified END TO END
+against the APNs sandbox with the REAL key — `.p8` auth works, the
+`com.polymathic.commutealert.s3probe` topic is accepted, and a bogus device
+token gets `400 BadDeviceToken` (i.e. we're past auth and topic). The ONLY
+remaining blocker is a real device token, which is S3's deliverable.
 
 ## Needs from human
 
-1. **APNs `.p8` provider key + Key ID** (day-0 ask, batchable).
-   Create at developer.apple.com → Certificates, IDs & Profiles → Keys → new
-   key with "Apple Push Notifications service (APNs)" enabled. Download the
-   `AuthKey_XXXXXXXXXX.p8` (one-time download) and note the 10-char Key ID.
-   Drop it at exactly:
-     /Users/bradleybares/Git/commute-alert/prototypes/s2-apns-harness/.secrets/AuthKey_<KEYID>.p8
-   And create:
-     /Users/bradleybares/Git/commute-alert/prototypes/s2-apns-harness/.secrets/apns.env
-   containing:
-     APNS_KEY_ID=<the 10-char Key ID>
-     APNS_TEAM_ID=MSQSPT8P3W          # already defaulted; only needed if different
-     APNS_BUNDLE_ID=com.polymathic.commutealert.s3probe   # must equal S3's Xcode bundle id
-   (`.secrets/` is gitignored. The directory does not exist yet — create it.)
+1. ~~APNs `.p8` provider key + Key ID~~ **DONE.** Key ID `42H763JTRN`, team
+   `MSQSPT8P3W`, in `.secrets/` in the main checkout. `doctor` is green;
+   `.p8` auth verified against the sandbox.
 
-2. **One device token to send to.** Any of the three S3 captures works for a
-   first end-to-end check; ideally all three eventually:
-     - Live Activity push-to-start token   (for `la-start`)
-     - Live Activity per-activity token     (for `la-update` / `la-end`)
-     - plain APNs device token              (for `alert` / `background`)
-   S3 is collecting these into prototypes/s3-apple-setup/tokens.md. If that file
-   can't reach this session (S3 is on its own branch), paste the tokens to the
-   orchestrator and it will relay. No separate ask needed if S3's file is
-   reachable.
+2. **A device token from S3** — the last blocker. It is not something this
+   session can fetch: a device token is issued by iOS to the S3 app running on a
+   physical iPhone. It comes out of S3's runbook
+   (`prototypes/s3-apple-setup/RUNBOOK.md`, branch `worktree-s3-apple-setup`),
+   a ~30–45 min hands-on Xcode + iPhone session that ends with three tokens
+   pasted into:
+     /Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md
+   The three:
+     - LIVE ACTIVITY push-to-start token      -> S2 `la-start`
+     - LIVE ACTIVITY per-activity push token  -> S2 `la-update` / `la-end`
+     - APNs device token (alert / background) -> S2 `alert` / `background`
+   Once that file exists this session's reader picks it up automatically
+   (verified against S3's format). For a first check, even just the
+   `APNs device token` row is enough to get a real `200` on `alert`.
 
-Neither item blocks further build work — there is none left that is independent
-of them. Hence BLOCKED rather than RUNNING.
+No independent build work remains. Hence BLOCKED.
 
 ## Blocked-command log (background-session permission prompts)
 
@@ -65,3 +59,8 @@ of them. Hence BLOCKED rather than RUNNING.
   substring in the push-to-start label does not collide; an unfilled
   `<paste …>` placeholder raises a loud error. +4 unit tests (33 total).
 - Added an APNs validation-order callout to the top of FINDINGS.md for S4.
+- Real `.p8` arrived (Key ID 42H763JTRN). `doctor` green; JWT signs. Verified
+  end to end vs sandbox: `alert` / `la-start` / `background` to a bogus token
+  now return `400 BadDeviceToken` (was `403 InvalidProviderToken` with the
+  throwaway key) — auth + topic accepted. FINDINGS.md updated. Only a real
+  device token (S3) remains.

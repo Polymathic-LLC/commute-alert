@@ -24,57 +24,63 @@ equivalent curl) with no credentials or network. 33 unit tests pass.
 
 ## Q: Does `.p8` provider-token (JWT) auth work end to end against the sandbox?
 
-**Answer: The transport and signing path is confirmed working; final
-confirmation of a *valid* key is blocked on the human's `.p8`.**
+**Answer: Yes.** With the real key (Key ID `42H763JTRN`, team `MSQSPT8P3W`),
+APNs accepts the JWT and the `com.polymathic.commutealert.s3probe` topic. A send
+to a **bogus** device token now returns **`400 BadDeviceToken`** — not the
+`403 InvalidProviderToken` we got with the throwaway key. The failure moved past
+auth and past topic validation to the device token, which is exactly the
+progression that proves auth works. Same result for `la-start` and `background`.
+The only thing between here and a `200` is a real device token.
 
-Evidence, all against `https://api.sandbox.push.apple.com` this session:
+Evidence, all against `https://api.sandbox.push.apple.com`:
 
-- With an ES256 JWT signed by a locally-generated P-256 key (valid structure,
-  `kid` Apple does not recognise): APNs replies **`403 InvalidProviderToken`**,
-  body `{"reason":"InvalidProviderToken"}`. This proves the JWT is well-formed
-  enough for Apple to parse the header, look up the `kid`, and reject it — i.e.
-  PyJWT ES256 signing + our header/claims shape are correct.
-- With **no** `authorization` header: **`403 MissingProviderToken`**.
+- Throwaway P-256 key (unknown `kid`): **`403 InvalidProviderToken`**.
+- No `authorization` header: **`403 MissingProviderToken`**.
+- **Real key**, bogus device token, `alert` / `la-start` / `background`:
+  **`400 BadDeviceToken`** for all three.
 - Over **HTTP/1.1**: `RemoteProtocolError: illegal request line` — APNs refuses
   at the protocol level. **HTTP/2 is mandatory**, confirmed, not just
   documented. `httpx[http2]` (h2 4.x) negotiates HTTP/2 fine.
 
-What remains for the real key: a `200` on a valid JWT, and the token/topic
-failure catalogue below.
-
-**Confidence: high** for transport/signing; the "valid key returns 200" step is
-**untested, blocked on human**.
+**Confidence: high.** `.p8` auth + topic handling verified end to end this
+session. `200 OK` still needs a real device token (S3).
 
 ---
 
 ## Q: What does APNs return for a stale / wrong Live Activity token, wrong
 topic, oversized collapse-id, etc.?
 
-**Answer: Cannot be observed yet — provider-token validation happens first.**
+**Answer: Partly observed. Auth + malformed-token confirmed; the rest still
+needs a *real* device token to reach.**
 
-APNs validates the JWT before it looks at the device token, `apns-topic`, or
-`apns-collapse-id`. Every malformed-token / wrong-topic / 80-byte-collapse-id
-probe this session returned `InvalidProviderToken`, because the throwaway key is
-not a real one. So the following are **documented from Apple's reference, not yet
-observed**, and need the real `.p8` to confirm:
+APNs validates the JWT first, then the topic, then the device token. With the
+throwaway key everything returned `InvalidProviderToken`; with the real key, a
+malformed device token returns **`400 BadDeviceToken`** (observed, all push
+types). The rows below marked "observed" are confirmed this session; the rest
+need a real token from S3 to exercise (a well-formed token pointed at the wrong
+environment, an expired LA token, etc.):
 
-| Condition | Expected `reason` (HTTP) | Notes |
+| Condition | `reason` (HTTP) | Status |
 |---|---|---|
-| Device/LA token doesn't match env | `BadDeviceToken` (400) | sandbox vs prod host mismatch also lands here |
-| LA token valid but wrong `apns-topic` | `DeviceTokenNotForTopic` (400) | the `.push-type.liveactivity` suffix mistake |
-| Topic not permitted for the key | `TopicDisallowed` (400) | key not enabled for the app / capability |
-| LA token expired | `ExpiredToken` (410) | LA per-activity tokens rotate |
-| Activity ended / app uninstalled | `Unregistered` (410) | includes a `timestamp` in the body |
-| JWT older than 1h | `ExpiredProviderToken` (403) | our signer refreshes at 45min to avoid this |
-| JWT refreshed too often | `TooManyProviderTokenUpdates` (429) | our signer caches, so a run won't trip this |
-| `apns-collapse-id` > 64 bytes | `BadCollapseId` (400) | |
+| Malformed / unknown device token | `BadDeviceToken` (400) | **observed** (alert, la-start, background) |
+| JWT signed with unknown key | `InvalidProviderToken` (403) | **observed** |
+| No `authorization` header | `MissingProviderToken` (403) | **observed** |
+| Well-formed token, wrong environment (sandbox vs prod) | `BadDeviceToken` (400) | needs real token |
+| LA token valid but wrong `apns-topic` | `DeviceTokenNotForTopic` (400) | needs real token — the `.push-type.liveactivity` suffix mistake |
+| Topic not permitted for the key | `TopicDisallowed` (400) | needs real token — key not enabled for the app / capability |
+| LA token expired | `ExpiredToken` (410) | needs real token — LA per-activity tokens rotate |
+| Activity ended / app uninstalled | `Unregistered` (410) | needs real token — includes a `timestamp` in the body |
+| JWT older than 1h | `ExpiredProviderToken` (403) | from Apple ref — our signer refreshes at 45min to avoid this |
+| JWT refreshed too often | `TooManyProviderTokenUpdates` (429) | from Apple ref — our signer caches, so a run won't trip this |
+| `apns-collapse-id` > 64 bytes | `BadCollapseId` (400) | needs real token (collapse-id is checked after the token) |
 | payload > 4KB | `PayloadTooLarge` (413) | harness rejects locally before sending |
 
 The harness maps all of these to a one-line hint in its output
 (`client.REASON_HINTS`).
 
-**Confidence: high** that JWT-first ordering blocks local observation;
-**the table itself is unverified** pending the real key.
+**Confidence: high** for the "observed" rows. The rest wait on a real device
+token from S3 — the validation order (JWT → topic → token → collapse-id) means
+they can't be reached with a bogus token.
 
 ---
 
