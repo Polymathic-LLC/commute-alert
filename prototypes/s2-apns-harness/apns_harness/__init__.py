@@ -7,4 +7,4 @@ without also debugging push plumbing.
 Not production code. See ../DERISKING.md workstream S2.
 """
 
-__all__ = ["config", "jwt_auth", "client", "payloads", "history"]
+__all__ = ["config", "jwt_auth", "client", "payloads", "history", "api", "tokens"]

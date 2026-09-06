@@ -25,12 +25,24 @@ coordination. Everything S2 sent, so S4 can account for it:
 | 2026-09-06 10:09:40 | background | dummy | sandbox | 400 BadDeviceToken | e90491d8-… |
 | **2026-09-06 16:40:04** | **alert** | **real device token** | sandbox | **200 OK** | aba39102-… |
 | **2026-09-06 16:40:14** | **background** | **real device token** | sandbox | **200 OK** | 929c1341-… |
-| **2026-09-06 16:40:14** | **la-start** | **real push-to-start token** | sandbox | **200 OK** | df783428-… |
+| **2026-09-06 16:40:14** | **la-start** (old, undecodable payload) | **real push-to-start token** | sandbox | **200 OK** | df783428-… |
+| **2026-09-06 16:57:09** | **la-start** (S4-A1, corrected payload, `routeName=S4-A1`) | push-to-start token | sandbox | **200 OK** | e32ed27b-… |
+| **2026-09-06 16:57:10** | **la-update** (S4-A2, to hours-old per-activity token) | per-activity token `80ce8fb3…` | sandbox | **200 OK** | 5a3b3d4f-… |
+| **2026-09-06 16:59:51** | **background** (S2 api.Sender live-path check) | real device token | sandbox | **200 OK** | 00aff1e9-… |
 
-The three 10:09 rows never reached the device (dummy tokens, rejected pre-delivery)
-— they cost nothing on the device. The three 16:40 rows were accepted for
-delivery to the real device. No `la-update` / `la-end` has ever been sent.
-Full detail (payloads, headers, `apns-unique-id`) in `logs/send-history.jsonl`.
+Hold lifted 2026-09-06 ~16:55 by S4 (s4-live-activity), which now owns the
+device and coordinates all live sends. The 10:09 rows never reached the device
+(dummy tokens). Everything from 16:40 on was accepted for delivery. `apns-id`,
+`apns-unique-id`, payloads and headers for every row are in
+`logs/send-history.jsonl`; sends from the library entry point carry
+`source: "api.Sender"` and an optional `meta` block.
+
+**Data point — `la-update` to a stale per-activity token (S4-A2):** the
+per-activity token was captured ~2 h before this send and its `Activity` may
+already be dead on-device. APNs still returned **`200 OK`**, not `410
+Unregistered` or `410 ExpiredToken`. So a `200` on an LA update does **not**
+prove the activity is alive — APNs accepts it and (presumably) drops it if the
+activity is gone. S4: whether the update actually applied is a device-side read.
 
 **Sequencing lesson (not repeated):** S2 sent the `la-start` push-to-start
 *before* S3 confirmed that a Live Activity can be started **locally** on the
@@ -163,6 +175,7 @@ environment, an expired LA token, etc.):
 | Topic not permitted for the key | `TopicDisallowed` (400) | needs real token — key not enabled for the app / capability |
 | LA token expired | `ExpiredToken` (410) | needs real token — LA per-activity tokens rotate |
 | Activity ended / app uninstalled | `Unregistered` (410) | needs real token — includes a `timestamp` in the body |
+| `la-update` to a ~2h-old per-activity token (activity maybe dead) | — | **observed: `200 OK`**, not 410. A `200` on an LA update does not prove the activity is live. |
 | JWT older than 1h | `ExpiredProviderToken` (403) | from Apple ref — our signer refreshes at 45min to avoid this |
 | JWT refreshed too often | `TooManyProviderTokenUpdates` (429) | from Apple ref — our signer caches, so a run won't trip this |
 | `apns-collapse-id` > 64 bytes | `BadCollapseId` (400) | needs real token (collapse-id is checked after the token) |
@@ -265,12 +278,60 @@ path / env var explicitly.
 
 ---
 
+## Driving the harness at rate (for S4)
+
+**Connection + token reuse.** `client.ApnsClient` holds one `httpx.Client(http2=True)`
+for its lifetime — sends on one instance reuse the pooled HTTP/2 connection (TLS
+negotiated once). `jwt_auth.ProviderTokenSigner` mints the provider JWT once and
+reuses it for 45 min (`REFRESH_AFTER_SECONDS`), re-signing under a lock only when
+stale. So a long in-process loop will **not** renegotiate TLS per send and
+**cannot** trip `TooManyProviderTokenUpdates` — *provided you reuse one sender*.
+The CLI builds a fresh `ApnsClient` + signer per invocation, so a
+subprocess-per-send loop is the wrong way to drive a ramp (new connection and a
+newly-minted token every send).
+
+**Library entry point:** `apns_harness/api.py`.
+
+```python
+from apns_harness.api import Sender
+from apns_harness.payloads import example_payload
+
+with Sender(environment="sandbox") as s:      # one client, one signer, for the whole ramp
+    for i in range(n):
+        resp = s.send(
+            type="la-update",                  # "la-update" | "la-start" | "la-end" | "alert" | "background"
+            token=per_activity_token,
+            payload=example_payload("la-update"),   # a dict; deep-copied, never mutated
+            headline=f"ramp {i}",              # convenience: overwrites aps.content-state.headline
+            collapse_id="ramp",                # optional
+            ttl=3600,                          # optional; sets apns-expiration = now + ttl
+            extra_log={"seq": i, "phase": "A"},# optional; lands in send-history.jsonl under "meta"
+        )
+        # resp: ApnsResponse — .status_code .reason .ok .apns_id .apns_unique_id .timestamp .hint() .as_dict()
+```
+
+`s.send_detailed(...)` returns `(BuiltRequest, ApnsResponse, record)` if you also
+want the exact headers. `s.sent` counts sends; `s.provider_token_refreshes`
+should stay at `1` across a whole ramp — watch it. Every send writes to the same
+`logs/send-history.jsonl` the CLI uses, tagged `source: "api.Sender"`. Pass
+`log=False` on a call to skip that. `Sender.send` for `la-*` also injects a fresh
+`aps.timestamp` and refreshes `content-state.updatedAt` (ISO-8601) unless
+`refresh_la_fields=False`.
+
+Verified live 2026-09-06 16:59:51 EDT: one `background` send through `Sender`
+→ `200 OK`, `provider_token_refreshes == 1`, logged. The CLI's own send path was
+refactored to go through `Sender`, so CLI and library are one code path.
+
+**Note for the budget numbers:** the probe app's Info.plist sets
+`NSSupportsLiveActivitiesFrequentUpdates = true`. Any ceiling S4 measures is the
+*frequent-updates* ceiling, not the default one.
+
+---
+
 ## Still open
 
-**S2 is on a live-send hold** (orchestrator): no more pushes of any type to
-S3's device without S4/orchestrator coordination, so S4's Live Activity update
-budget is measured against an untouched-by-us bucket. Remaining `la-update` /
-`la-end` work is dry-run + payload validation only until then.
+**Live sends resume under S4's coordination** (hold lifted 2026-09-06 ~16:55).
+S2 is the send mechanism; S4 designs the experiment and owns the device.
 
 1. ~~A `200 OK` on a valid provider token.~~ **Done** — alert, background,
    la-start (2026-09-06 16:40 EDT).

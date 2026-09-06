@@ -13,7 +13,8 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from apns_harness import client, config, history, jwt_auth, payloads, tokens
+from apns_harness import api, client, config, history, jwt_auth, payloads, tokens
+from apns_harness.client import ApnsResponse
 from apns_harness.payloads import PUSH_TYPES
 
 
@@ -356,3 +357,98 @@ def test_redact_token():
     assert history.redact_token("short") == "…"
     r = history.redact_token("abcdef0123456789abcdef")
     assert r.startswith("abcdef") and "len 22" in r
+
+
+# -------------------------------------------------------------------------- api
+class _FakeApnsClient:
+    """Stand-in for ApnsClient: records sends, returns a canned 200, shares one
+    signer so refresh accounting is testable."""
+
+    def __init__(self, cfg, *, environment="sandbox", timeout=15.0):
+        self.environment = environment
+        self.calls: list[dict] = []
+        self.closed = False
+        self.signer = jwt_auth.ProviderTokenSigner(
+            key_id=cfg.key_id, team_id=cfg.team_id, p8_pem=cfg.p8_pem
+        )
+
+    def send(self, **kw):
+        self.calls.append(kw)
+        # mirror the real client: ask the (shared, cached) signer each send
+        self.signer.authorization_header(force=kw.get("force_token_refresh", False))
+        from apns_harness.client import build_request
+
+        req = build_request(
+            cfg=None, push_type=kw["push_type"], device_token=kw["device_token"],
+            payload=kw["payload"], environment=self.environment,
+            collapse_id=kw.get("collapse_id"),
+        )
+        resp = ApnsResponse(
+            status_code=200, apns_id="fake-1", apns_unique_id="fake-u-1",
+            reason=None, timestamp=None, raw_body="",
+        )
+        return req, resp
+
+    def close(self):
+        self.closed = True
+
+
+@pytest.fixture
+def fake_sender(monkeypatch, cfg, tmp_path):
+    monkeypatch.setattr(api, "ApnsClient", _FakeApnsClient)
+    monkeypatch.setattr(history, "HISTORY_PATH", tmp_path / "send-history.jsonl")
+    return api.Sender(environment="sandbox", cfg=cfg)
+
+
+def test_api_sender_reuses_one_client_and_signer(fake_sender):
+    p = payloads.example_payload("la-update")
+    for i in range(5):
+        r = fake_sender.send(type="la-update", token="dead", payload=p, headline=f"n{i}")
+        assert r.ok
+    # one client, one signer, minted once
+    assert fake_sender.sent == 5
+    assert fake_sender.provider_token_refreshes == 1
+    assert len(fake_sender.client.calls) == 5
+
+
+def test_api_sender_does_not_mutate_caller_payload(fake_sender):
+    p = payloads.example_payload("la-update")
+    before = json.loads(json.dumps(p))
+    fake_sender.send(type="la-update", token="dead", payload=p, headline="changed")
+    assert p == before  # deep-copied internally
+
+
+def test_api_sender_headline_override_and_la_injection(fake_sender):
+    _, resp, record = fake_sender.send_detailed(
+        type="la-start", token="dead", payload=payloads.example_payload("la-start"),
+        headline="S4-A1",
+    )
+    sent = fake_sender.client.calls[-1]["payload"]
+    assert sent["aps"]["content-state"]["headline"] == "S4-A1"
+    assert "timestamp" in sent["aps"]  # injected
+    assert record["response"]["status_code"] == 200
+
+
+def test_api_sender_writes_history(fake_sender, monkeypatch):
+    fake_sender.send(type="alert", token="beef", payload=payloads.example_payload("alert"))
+    rows = history.tail(10, path=history.HISTORY_PATH)
+    assert rows and rows[-1]["type"] == "alert"
+    assert rows[-1]["source"] == "api.Sender"
+    assert rows[-1]["device_token_redacted"].startswith("beef") is False  # redacted form
+
+
+def test_api_sender_log_false_skips_history(fake_sender):
+    fake_sender.send(type="alert", token="beef", payload=payloads.example_payload("alert"), log=False)
+    assert history.tail(10, path=history.HISTORY_PATH) == []
+
+
+def test_api_sender_context_manager_closes(monkeypatch, cfg):
+    monkeypatch.setattr(api, "ApnsClient", _FakeApnsClient)
+    with api.Sender(cfg=cfg) as s:
+        client_ref = s.client
+    assert client_ref.closed is True
+
+
+def test_api_sender_rejects_unknown_type(fake_sender):
+    with pytest.raises(KeyError):
+        fake_sender.send(type="nope", token="x", payload={"aps": {}})

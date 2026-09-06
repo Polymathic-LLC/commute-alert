@@ -21,7 +21,8 @@ import time
 from pathlib import Path
 
 from . import config, history, tokens
-from .client import ApnsClient, build_request
+from .api import Sender
+from .client import build_request
 from .jwt_auth import ProviderTokenSigner, decode_unverified
 from .payloads import (
     PUSH_TYPES,
@@ -226,30 +227,23 @@ def cmd_send(args: argparse.Namespace) -> int:
     for w in cfg.warnings:
         _eprint(f"  WARNING: {w}")
 
-    with ApnsClient(cfg, environment=args.env) as client:
-        req, resp = client.send(
-            push_type=push_type,
-            device_token=token,
+    # One code path with the library entry point S4 uses. LA field injection +
+    # validation already happened above, so tell Sender not to repeat them.
+    with Sender(environment=args.env, cfg=cfg) as sender:
+        _, resp, record = sender.send_detailed(
+            type=args.type,
+            token=token,
             payload=payload,
             priority=args.priority,
             collapse_id=args.collapse_id,
             expiration=expiration,
             topic_override=args.topic,
+            refresh_la_fields=False,
+            validate_payload=False,
             force_token_refresh=args.force_token_refresh,
         )
-
-    entry = {
-        "type": args.type,
-        "environment": args.env,
-        "device_token_redacted": history.redact_token(token),
-        "request": {
-            "url": req.url,
-            "headers": req.redacted_headers(),
-        },
-        "payload": payload,
-        "response": resp.as_dict(),
-    }
-    log_path = history.record(entry)
+    log_path = history.HISTORY_PATH
+    del record
 
     print(f"HTTP {resp.status_code}  {'OK' if resp.ok else 'ERROR'}")
     print(f"  apns-id        : {resp.apns_id}")

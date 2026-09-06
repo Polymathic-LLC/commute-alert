@@ -1,33 +1,27 @@
-STATUS: RUNNING (live-send hold in effect)
+STATUS: RUNNING (serving S4)
 
-Last updated: 2026-09-06 (day 0, late evening — root-caused the no-Live-Activity)
-Summary: 3 of 5 push types returned `200 OK` from the APNs sandbox (`alert`,
-`background`, `la-start`). Device check: the `alert` banner showed; the
-`la-start` did NOT start a Live Activity. Root cause found — the example
-payload's `attributes` / `content-state` used invented snake_case keys instead
-of S3's Swift struct property names (`routeName`, `displayStatus`, `updatedAt`,
-…), so iOS accepted the push and decoded nothing. Fixed in
-`payloads/live-activity-*.json` + `example_payload()`, guarded by a unit test.
-NOT re-sent — S2 is on a **live-send hold** (S4 owns the Live Activity
-update-budget measurement and the device). All three tokens are now in S3's
-tokens.md. 35 tests pass.
+Last updated: 2026-09-06 (day 0, night — hold lifted, serving S4)
+Summary: All 5 push types have been accepted by APNs (`200 OK`) against the
+sandbox with S3's real tokens. S4 (s4-live-activity) took over the device and
+lifted the send hold ~16:55; S2 now runs sends on S4's schedule. Delivered a
+library entry point (`apns_harness/api.py` — `Sender`) for S4's rate ramp:
+one HTTP/2 connection + one cached JWT for the whole loop, every send in the
+canonical `send-history.jsonl`. CLI now routes through it too — one code path.
+42 tests pass.
 
 ## Needs from human / S3 / orchestrator
 
 1. ~~APNs `.p8` provider key~~ **DONE** (Key ID `42H763JTRN`).
+2. ~~Per-activity push token~~ **DONE** — all three tokens in S3's tokens.md.
+3. ~~Lift the live-send hold~~ **DONE** — S4 owns it now.
 
-2. **Orchestrator/S4: lift the live-send hold** when S4 is ready to own the
-   device, so `la-update` / `la-end` and the failure-mode catalogue can be sent
-   for real. S2 is the send mechanism; S4 is the experiment designer.
-
-3. ~~Per-activity push token~~ **DONE** — all three tokens now in S3's
-   tokens.md (S3 worktree copy).
-
-4. ~~Device-side confirmation~~ **Partly done** — `alert` banner showed;
-   `la-start` did not start a Live Activity (root-caused: payload key mismatch,
-   now fixed). Local start works, per the user. Still useful from S4: does the
-   *corrected* `la-start` payload start one, and does `updatedAt` (ISO-8601)
-   decode — see FINDINGS.md "la-start returned 200 but no Live Activity".
+Outstanding (device-side reads, S4 to gather when watching the phone):
+- Does the **corrected** `la-start` (sent 16:57 as S4-A1) actually put a Live
+  Activity on the lock screen? (the pre-fix one didn't.)
+- Does `updatedAt` as ISO-8601 decode into the Swift `Date`? Fallbacks in
+  FINDINGS if not.
+- Did the `la-update` to the ~2h-old per-activity token (S4-A2, `200 OK`)
+  actually change anything on-screen, or was it silently dropped?
 
 ## Blocked-command log (background-session permission prompts)
 
@@ -82,3 +76,13 @@ tokens.md. 35 tests pass.
   → iOS decoded nothing. Fixed the LA payloads + `example_payload()`; added
   `refresh_updated_at` (ISO-8601) alongside `inject_timestamp`; regression test.
   Date-encoding strategy for `updatedAt` still unverified — flagged for S4.
+- S4 (s4-live-activity) took the device + hold, lifted the hold, and asked for
+  two baseline sends. Sent 16:57 EDT: la-start S4-A1 (corrected payload) → 200;
+  la-update S4-A2 to the ~2h-old per-activity token → **200** (not 410
+  Unregistered — a real failure-table data point: a 200 on an LA update does
+  not prove the activity is alive).
+- Built `apns_harness/api.py` (`Sender`) as S4's loop entry point: one
+  `ApnsClient` + one `ProviderTokenSigner` per instance (connection + JWT
+  reuse, no `TooManyProviderTokenUpdates`), deep-copies payloads, logs to the
+  canonical history with `source`/`meta` tags. Refactored `cmd_send` to use it.
+  Verified live (background → 200, 1 token refresh). +7 tests, 42 total.

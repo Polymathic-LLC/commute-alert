@@ -100,6 +100,33 @@ a mismatch means APNs returns 200 and iOS silently starts/updates nothing. The
 `updatedAt` date-encoding strategy (ISO-8601 vs Unix epoch) is not yet confirmed
 for this struct — see `FINDINGS.md`.
 
+## Library use (rate ramps, e.g. S4)
+
+Driving the CLI in a subprocess per send opens a new HTTP/2 connection and mints
+a new provider JWT every time — at rate that trips `TooManyProviderTokenUpdates`.
+Use `apns_harness.api.Sender` instead: one pooled connection + one cached JWT for
+the whole loop, every send in the same `logs/send-history.jsonl`.
+
+```python
+from apns_harness.api import Sender
+from apns_harness.payloads import example_payload
+
+with Sender(environment="sandbox") as s:
+    for i in range(200):
+        resp = s.send(
+            type="la-update",
+            token=per_activity_token,
+            payload=example_payload("la-update"),
+            headline=f"ramp {i}",
+            collapse_id="ramp",
+            extra_log={"seq": i},
+        )
+        assert s.provider_token_refreshes == 1   # stays 1 across the whole ramp
+```
+
+`send()` → `ApnsResponse`; `send_detailed()` → `(BuiltRequest, ApnsResponse, record)`.
+The CLI's own send path goes through `Sender`, so the two are one code path.
+
 ## Tests
 
 ```
