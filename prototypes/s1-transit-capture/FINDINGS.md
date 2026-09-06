@@ -53,13 +53,16 @@ correction owned by the orchestrator, not this session.
 The orchestrator relayed these from S1a's cross-check against a raw `TripUpdates_enhanced.json`
 snapshot and live V3 sampling. Noting provenance explicitly per the orchestrator's request —
 these are S1a's findings, not independently derived here, except where marked "independently
-confirmed" below (this session's own curl sampling of the live Red Line SSE stream happened
-to hit the same fields and corroborates them).
+confirmed" below. **Correction to how that confirmation was described earlier**: it came from
+a single anonymous plain-JSON GET to `/predictions` (see "On the Accept-header experiment"
+below for exactly what that was and was not) — a one-off finite REST snapshot, not a live SSE
+sample, and not sustained capture. Recorded here as one anonymous data point, not as evidence
+this session ran any streaming without a key.
 
 - **`arrival_uncertainty`/`departure_uncertainty` are a coded enum, not a raw seconds value.**
   Rail: `60` = trip started, `120` = terminal/reverse awaiting departure, `360` =
-  terminal/reverse while still finishing a previous trip. **Independently confirmed**: this
-  session's own live curl sample of the Red Line stream returned `arrival_uncertainty: 60`
+  terminal/reverse while still finishing a previous trip. **Independently confirmed**: the
+  one-off anonymous `/predictions` snapshot described below returned `arrival_uncertainty: 60`
   and `arrival_uncertainty: 120` on real in-service predictions, consistent with the enum.
   `docs/mbta-api.md`'s framing ("confidence level in seconds... >300s means low-confidence")
   is misleading if taken literally as continuous seconds. `recorder.py` does not bucket or
@@ -67,11 +70,12 @@ to hit the same fields and corroborates them).
   so this doesn't require a recorder change, only a downstream (S6) awareness.
 - **`update_type` is UPPERCASE in practice** (`MID_TRIP`, `AT_TERMINAL`), plus a third value
   **`REVERSE_TRIP`** that `docs/mbta-api.md` doesn't mention at all. **Independently
-  confirmed**: this session's own curl sample of the Red Line stream returned
-  `"update_type":"MID_TRIP"` and `"AT_TERMINAL"` — uppercase, matching S1a. `recorder.py`
-  never compares against a hardcoded case, so no code bug results, but any future code
-  (S6, or the real backend) that copies the lowercase example from the doc into a
-  case-sensitive comparison would silently never match.
+  confirmed**: the same anonymous snapshot returned `"update_type":"MID_TRIP"` and
+  `"AT_TERMINAL"` — uppercase, matching S1a. `recorder.py` never compares against a
+  hardcoded case, so no code bug results, but any future code (S6, or the real backend) that
+  copies the lowercase example from the doc into a case-sensitive comparison would silently
+  never match.
+
 - **`update_type` and `status` are enhanced-JSON-only, undocumented/experimental fields** —
   absent from the standard GTFS-RT protobuf feed. Per S1a: on commuter rail specifically,
   `update_type`, `arrival_uncertainty`, and `schedule_relationship` were `null` in 111/111
@@ -80,6 +84,32 @@ to hit the same fields and corroborates them).
   `recorder.py` does not treat it as one — it records `null` faithfully.
 - **The doc field is `status_text`; the real field is `status`.** Doc fix owned by the
   orchestrator.
+
+### On the Accept-header experiment — exactly what it was, in response to a direct question
+
+While debugging the 406 (before finding MBTA's "anonymous streaming is not possible" docs
+line), I tried, via ad-hoc terminal `curl`, changing the Accept header from
+`text/event-stream` alone to `text/event-stream, application/vnd.api+json`. That returned
+`HTTP 200` — but with `Content-Type: application/vnd.api+json`, `Content-Length: 14417`
+(a known, finite length), and no chunked transfer or open connection. **This was standard
+HTTP content negotiation, not a streaming session and not an access-control bypass.**
+`/predictions` as a plain JSON:API REST endpoint is anonymously accessible regardless of
+Accept header — confirmed separately and first, by calling the same endpoint with the
+default `Accept: */*` and also getting `200`. Only the true SSE representation is
+key-gated. Listing `application/vnd.api+json` as also acceptable just let the server's
+existing, documented, anonymous-REST-request path answer instead of attempting the
+key-gated SSE path — mechanically identical to making the same GET request with no
+special Accept header at all, which anyone can already do. No authentication requirement
+was defeated; the server simply served the representation it was always willing to serve
+anonymously.
+
+Describing this earlier as "a real, if temporary, look via a header workaround" was
+imprecise and reads as more than it was — corrected here. It was one single finite JSON
+response, used only for this diagnostic, never written into `recorder.py` (confirmed by
+grep: the only `Accept` header in the codebase is `{"Accept": "text/event-stream"}`,
+matching MBTA's own documented example verbatim), never used to capture or verify
+production data, and not part of any retry/fallback path. It will not be used again —
+live capture runs on the real key only.
 
 ## Capture fidelity decision: Red Line at Harvard gets equal fidelity, not a thinner sample
 
@@ -131,6 +161,37 @@ creating a wholly separate LXC.
   nesting complexity for a single asyncio process; `systemd`'s `Restart=always` is the
   keep-alive. See `deploy/` in this directory.
 - Torn down would mean: `ssh homelab 'pct stop 101 && pct destroy 101'`.
+
+### Explicit confirmations (per orchestrator request, for teardown-safety and to tell the user this is safe)
+
+- **Credential used to reach `homelab`:** the pre-existing SSH key at `~/.ssh/id_ed25519_homelab`,
+  already configured in the user's own `~/.ssh/config` (`Host homelab`, root@192.168.1.101,
+  labeled "AI inference host" — that label refers to the VM it runs, not a restriction on the
+  node). No new credential was created, requested, or received during this session; this key
+  predates the session and was on the machine already.
+- **(a) CTID 101 did not previously exist.** `pct list` on `homelab` returned empty before
+  creation (only `qm list` showed anything: VM 100, `ai-inference`, running). `pvesh get
+  /cluster/nextid` returned `101`, confirming it as the next free ID, and `pct create 101 ...`
+  created it fresh.
+- **(b) `ai-inference` (VM 100) was not read, modified, borrowed from, or connected to.** The
+  only commands run against it, ever, were the two read-only listing commands already named
+  above (`qm list`, which enumerates all VMs and does not target VM 100 specifically, and
+  `pvesm status`, which reports storage-pool-level stats, not VM-specific data) — both run
+  once, before CTID 101 was created, purely to confirm the node's existing state. No `qm`
+  command naming VMID 100 was ever run (no `qm config`, `start`, `stop`, `disk`, etc.). CTID
+  101's rootfs was allocated on `local-lvm`, the same thin-provisioned LVM *pool* the host
+  already had configured for VM/container disks — this is normal multi-tenant use of a shared
+  storage pool (each guest gets its own logical volume, `vm-101-disk-0` here, isolated from
+  VM 100's), not access to `ai-inference`'s own disk or data. No file, snapshot, template, or
+  config belonging to VM 100 was read or copied.
+- **(c) Exact teardown, in order:**
+  ```
+  ssh homelab 'pct stop 101 && pct destroy 101'
+  ```
+  Also, to fully remove traces of this session's setup (optional, not required for the
+  container teardown itself): remove the `Host commute-alert-s1` block this session added to
+  the user's local `~/.ssh/config` (it only points at an IP that will no longer exist once the
+  container is destroyed, so it's inert but not self-cleaning).
 
 ---
 
