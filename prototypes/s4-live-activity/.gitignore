@@ -1,0 +1,6 @@
+# Captured data — never commit (DERISKING session protocol)
+data/
+logs/
+.venv/
+__pycache__/
+*.pyc
