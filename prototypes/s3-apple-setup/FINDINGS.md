@@ -86,7 +86,30 @@ Fixed, not placeholders:
 | App Group | `group.com.polymathic.commutealert.s3probe` |
 | Deployment target | iOS 17.2 |
 
-## F6. The throwaway content-state is deliberately not the production contract
+## F7. `tokens.md` was NOT covered by the repo-root `.gitignore` — an assumed rule that did not exist
+
+- **What happened.** The handoff plan called `tokens.md` "gitignored". The
+  repo-root `.gitignore` had `prototypes/**/.secrets/` and `prototypes/**/data/`
+  but **no pattern matching `tokens.md`**. The prototype-local
+  `prototypes/s3-apple-setup/.gitignore` this session added covers the file only
+  inside this branch's tree — it does nothing for the main checkout until merged.
+- **Fix (done by the orchestrator).** Added `prototypes/**/tokens.md` to the
+  repo-root `.gitignore`, verified with `git check-ignore`.
+- **Lesson.** An assumed-but-absent ignore rule is exactly how a push token leaks
+  later. When a workflow depends on a path being ignored, verify with
+  `git check-ignore <path>` rather than assuming a glob covers it.
+- **Confidence.** High — verified.
+
+## F8. The human works the runbook from this worktree in place
+
+- The orchestrator decided against a second worktree or a merge-to-main. The
+  human opens `…/.claude/worktrees/s3-apple-setup/prototypes/s3-apple-setup/S3Probe.xcodeproj`
+  directly — it is a normal on-disk working tree and git-locked, so it is not
+  pruned. Tokens still get pasted into the **main-checkout** path
+  (`/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md`)
+  so S2/S4 read them independent of the worktree.
+
+## F9. The throwaway content-state is deliberately not the production contract
 
 `CommuteActivityAttributes.ContentState` here carries `v`, `displayStatus`,
 `headline`, `minutesToDeparture?`, `updatedAt`. This is only rich enough for S4 to
