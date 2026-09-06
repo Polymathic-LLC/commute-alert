@@ -147,7 +147,61 @@ push). Designs for all of them are in PROTOCOL.md, each with its falsifier.
 
 ---
 
-## F6 — On iOS 26.5, push-to-start with a struct-matching payload still started nothing. Cause not yet identified.
+## F6 — RESOLVED. On iOS 26.5, ActivityKit's push decoder rejects an ISO-8601 string for a Swift `Date`. It requires a JSON **number**. One wrong field silently kills the entire push.
+
+**Answer.** Push-to-start works. It had been failing on the encoding of a single field.
+
+**Evidence.** Three push-to-start pushes at 17:11:53–55 EDT, identical in every respect except
+the JSON encoding of `ContentState.updatedAt`, each tagged with its own `attributes.routeName`
+so the Lock Screen names the winner. Human observation:
+
+| Arm | `updatedAt` sent as | APNs | Card appeared |
+|---|---|---|---|
+| `S4-B1-iso` | `"2026-09-06T21:11:53Z"` (ISO-8601 string) | 200 | **no** |
+| `S4-B2-epoch` | `1788729113` (number, Unix epoch) | 200 | **yes** |
+| `S4-B3-ref2001` | `810421913` (number, seconds since 2001-01-01) | 200 | **yes** |
+
+**The delta between the failing A1 and the working B2 is exactly one thing: `updatedAt` went
+from a JSON string to a JSON number.** Nothing else changed — same topic, same token, same
+`attributes-type`, same key spellings, same five `content-state` keys. All three arms returned
+`200`, so APNs distinguished none of them.
+
+**Mechanism.** `ContentState.updatedAt` is a Swift `Date`. `JSONDecoder`'s default
+`dateDecodingStrategy` is `.deferredToDate`, which expects a number. Handed a string it throws,
+the *whole* `ContentState` fails to decode with it, and ActivityKit creates nothing and reports
+nothing to anyone. A single mistyped field discards the entire push, silently, behind a 200.
+
+**Hard requirement on the production payload, and it is not obvious.** Any `Date` in a
+`ContentState` must be sent as a **JSON number**, never as an ISO-8601 string — which is what a
+reasonable backend engineer would write, what Apple's own DTS guidance suggested to S2, and
+what every other JSON API in this system will use. *Which* numeric epoch the decoder reads it
+against is not yet pinned (see below); that the value must be numeric is established. A trap with no
+diagnostic: no APNs error, no device log a server can see, no partial render. It cost this
+project two failed pushes and most of an afternoon, and the same mistake in production would
+present as "Live Activities just don't work" with nothing to debug.
+
+**Cheapest mitigation for layer 2: do not put a `Date` in `ContentState` at all.** Send an
+integer of epoch seconds and convert client-side. That removes the failure mode rather than
+documenting it, and `display-contract.md`'s content-state field set is still Open, so the
+decision is free to make now.
+
+**Note that B2 and B3 both rendered.** Both are numbers, so both decode; they differ only in
+the *value* produced. B2's Unix-epoch number, read as seconds-since-2001, lands in the year
+2058. So "the card appeared" does not by itself confirm the strategy is `.deferredToDate` —
+the value shown on the card does, and that is the outstanding one-line check.
+
+**Confidence: high** that a JSON number is required and a string fails — three arms, one
+variable, unambiguous split, direct human observation. **Medium** that the strategy is
+specifically `.deferredToDate` rather than some other numeric interpretation; the card's
+timestamp line settles it.
+
+**Retracted:** an earlier revision of this finding said the corrected push-to-start "started
+nothing" and named that the workstream's headline negative. That was correct as of 17:06 and
+is now superseded — it was a payload defect, not a platform limitation. The negative stood for
+about two hours. Kept visible rather than deleted, because the sequence is the lesson: two
+separate payload bugs, four `200 OK`s, and nothing discovered until somebody looked at a phone.
+
+### Superseded diagnosis (retained for the record)
 
 **Question.** S2 root-caused the first push-to-start failure to snake_case keys and fixed it.
 Does a payload whose keys match S3's Swift structs exactly start a Live Activity?
@@ -216,3 +270,36 @@ start — no push involved")? Never → explanation 1. Yes, until 16:57 → expl
 in the outstanding human ask.
 
 **Confidence: the observation is high; the cause is unknown and no cause is claimed.**
+
+---
+
+## F8 — Three Live Activities coexisted on one device, unprompted. Partial concurrency data at no cost.
+
+**Evidence.** At ~17:15 EDT the human volunteered: "I now have 3 total live activities, the no
+push, S4-B2-…, & S4-B3-…". Nobody designed this; it fell out of E1b starting two activities
+while one was already running.
+
+**Answer so far.** On iOS 26.5, **at least 3** simultaneous Live Activities from one app are
+permitted and all three are individually identifiable on the Lock Screen — the human read three
+distinct `routeName` values off three distinct cards, which also confirms they are presented
+separately rather than collapsed into one stack summary. The documented 5-per-app cap is not
+contradicted; it is simply not yet reached. E5 still has to push past 5 to find the boundary and
+the failure mode, which is the part with design consequences.
+
+**Confidence: high** for "≥3 coexist, separately presented"; **nothing claimed** about the cap.
+
+### The free bonus that matters more
+
+B2 and B3 were started by push at **17:11:53 and 17:11:55 EDT — start times known to the
+second.** The activity E4 is heartbeating was started by hand during the S3 runbook and its
+start time is known only to ±10 minutes.
+
+So the morning observation gets a far better 8-hour-cap measurement than E4 was designed to
+produce, for free: if the cap is 8 h, B2 and B3 should be gone by ~01:12, and whether they are
+still present at the morning look brackets the true lifetime against a start time with no
+uncertainty in it. E4's heartbeats remain the only way to answer the *other* half — whether a
+sender can detect the death — because there is no per-activity token for a push-started
+activity on this build (F4).
+
+**Consequence for the morning ask:** it must name B2 and B3 specifically, not just ask "are the
+cards still there".
