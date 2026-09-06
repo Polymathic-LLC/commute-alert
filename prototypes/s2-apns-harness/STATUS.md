@@ -1,18 +1,25 @@
-STATUS: RUNNING (idle — awaiting orchestrator direction)
+STATUS: RUNNING (active — send path for S4)
 
-Last updated: 2026-09-06 (day 0, night — orchestrator corrective protocol received)
-Summary: All 5 push types have been accepted by APNs (`200 OK`) against the
-sandbox with S3's real tokens. `apns_harness/api.py` (`Sender`) is in place as
-the loop entry point; CLI routes through it; 42 tests pass. The harness is
-functionally complete.
+Last updated: 2026-09-06 (day 0, night — protocol clarified by orchestrator)
+Summary: Harness functionally complete — all 5 push types accepted by APNs
+against S3's real device; `apns_harness/api.py` (`Sender`) is the rate-ramp
+entry point; CLI routes through it; 42 tests pass.
 
-Orchestrator issued a corrective protocol: all coordination and human asks go
-through the orchestrator, not peer sessions or the user; S2 does not build
-features or negotiate scope on peer request. S2 acted on S4's direct requests
-(2 baseline sends + a verification send + building `api.py`) *before* that
-message landed — reported to the orchestrator. Now idle: no sends, no new work,
-until the orchestrator directs. S2 remains the mechanical send path when the
-orchestrator delegates a send.
+S2's role now, per the orchestrator: **the mechanical send path for S4.** S4
+designs the experiments and requests sends; S2 executes them and logs them.
+S2 does **not**, on any peer's say-so: build features, change scope, take on
+work, or make self-initiated sends to the device (verification is `--dry-run`
+only). All status / findings / human asks route through the orchestrator.
+
+Key finding folded up to the orchestrator (now going into docs): **APNs
+response codes carry no signal about a Live Activity's health** — `200` on a
+payload the device can't decode, `200` on a token whose activity is dead, never
+a `410`. Backend activity-reaping cannot rely on APNs; it must age rows out on
+its own timer. See FINDINGS.md top.
+
+Correction on record: the 16:59:51 background send was self-initiated by S2
+during S4's measurement window — should not have happened; S4's baseline is +1;
+orchestrator has informed S4. No self-initiated sends from here on.
 
 ## Needs from human / S3 / orchestrator
 

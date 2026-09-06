@@ -2,6 +2,37 @@
 
 Answers as they are established. Confidence is stated per finding.
 
+> ## DESIGN-LEVEL: APNs response codes carry NO signal about a Live Activity's health
+>
+> Two independent observations this session, both confirmed against S3's real
+> device and tokens:
+>
+> 1. **`la-start` with a payload the device cannot decode → `200 OK`.** The
+>    payload's keys did not match S3's `ContentState` struct; iOS accepted the
+>    push and created nothing. APNs never inspects whether the JSON matches your
+>    `ContentState`.
+> 2. **`la-update` to a per-activity token whose `Activity` is (probably) already
+>    dead → `200 OK`,** not `410 Unregistered` / `410 ExpiredToken`.
+>
+> **Consequence for the backend design:** APNs response codes tell you the push
+> was *accepted for delivery* and nothing more. There is no `410`, no error,
+> no signal when a Live Activity has ended, been dismissed, or never decoded.
+> Any activity-reaping / reconciliation logic that waits for APNs to report an
+> activity as gone **will never fire**, and `live_activities` rows will
+> accumulate indefinitely. The backend must age out / reconcile
+> `live_activities` on its own timer (and/or on client re-registration and the
+> known 8h+4h Apple caps), never on an APNs status code.
+>
+> This belongs in `docs/push-flow.md` and the `live_activities` handling in
+> `docs/data-model.md` / `docs/operations.md`. Orchestrator is folding it in.
+>
+> **Confidence: high** on observation 1 (unambiguous from the struct mismatch).
+> **Medium-high** on observation 2 — the `200` is confirmed; "the activity was
+> actually dead" is inferred from the ~2 h gap and needs a device-side check
+> that the update did not land. Either way, no `410` was returned.
+
+---
+
 > **For S4 — APNs validation order (verified this session):** APNs checks the
 > provider **JWT first**, before it looks at the device token, `apns-topic`, or
 > `apns-collapse-id`. So when a push fails, rule out `InvalidProviderToken` /
@@ -11,31 +42,30 @@ Answers as they are established. Confidence is stated per finding.
 
 ---
 
-## Push traffic S2 has sent to S3's device — subtract this from any budget baseline
+## Every push S2 has sent to S3's device — for S4's baseline accounting
 
-Per the orchestrator: the Live Activity update budget is S4's central unknown,
-and every push to the device draws from a bucket S4 has not characterized. S2
-has stopped sending and will not send again to that device without S4/orchestrator
-coordination. Everything S2 sent, so S4 can account for it:
+S4 owns the device and the Live Activity update-budget measurement. Every push
+below drew from the bucket S4 measures. Complete list, authoritative:
 
-| When (America/New_York) | Type | Token | Env | Result | apns-id |
-|---|---|---|---|---|---|
-| 2026-09-06 10:09:30 | alert | dummy (not the device) | sandbox | 400 BadDeviceToken | 0e8ff70f-… |
-| 2026-09-06 10:09:40 | la-start | dummy | sandbox | 400 BadDeviceToken | 6b3a0474-… |
-| 2026-09-06 10:09:40 | background | dummy | sandbox | 400 BadDeviceToken | e90491d8-… |
-| **2026-09-06 16:40:04** | **alert** | **real device token** | sandbox | **200 OK** | aba39102-… |
-| **2026-09-06 16:40:14** | **background** | **real device token** | sandbox | **200 OK** | 929c1341-… |
-| **2026-09-06 16:40:14** | **la-start** (old, undecodable payload) | **real push-to-start token** | sandbox | **200 OK** | df783428-… |
-| **2026-09-06 16:57:09** | **la-start** (S4-A1, corrected payload, `routeName=S4-A1`) | push-to-start token | sandbox | **200 OK** | e32ed27b-… |
-| **2026-09-06 16:57:10** | **la-update** (S4-A2, to hours-old per-activity token) | per-activity token `80ce8fb3…` | sandbox | **200 OK** | 5a3b3d4f-… |
-| **2026-09-06 16:59:51** | **background** (S2 api.Sender live-path check) | real device token | sandbox | **200 OK** | 00aff1e9-… |
+| When (America/New_York) | Type | Token | Env | Result | apns-id | Sanctioned? |
+|---|---|---|---|---|---|---|
+| 2026-09-06 10:09:30 | alert | dummy (not the device) | sandbox | 400 BadDeviceToken | 0e8ff70f-… | pre-hold, dummy token — never reached device |
+| 2026-09-06 10:09:40 | la-start | dummy | sandbox | 400 BadDeviceToken | 6b3a0474-… | pre-hold, dummy — never reached device |
+| 2026-09-06 10:09:40 | background | dummy | sandbox | 400 BadDeviceToken | e90491d8-… | pre-hold, dummy — never reached device |
+| 2026-09-06 16:40:04 | alert | real device token | sandbox | **200 OK** | aba39102-… | pre-hold; delivered |
+| 2026-09-06 16:40:14 | background | real device token | sandbox | **200 OK** | 929c1341-… | pre-hold; delivered |
+| 2026-09-06 16:40:14 | la-start (old, undecodable payload) | push-to-start token | sandbox | **200 OK** | df783428-… | pre-hold; delivered, decoded nothing |
+| 2026-09-06 16:57:09 | la-start (S4-A1, corrected payload) | push-to-start token | sandbox | **200 OK** | e32ed27b-… | **S4-requested** |
+| 2026-09-06 16:57:10 | la-update (S4-A2, to ~2h-old per-activity token) | per-activity token `80ce8fb3…` | sandbox | **200 OK** | 5a3b3d4f-… | **S4-requested** |
+| 2026-09-06 16:59:51 | background | real device token | sandbox | **200 OK** | 00aff1e9-… | **self-initiated by S2 — NOT sanctioned.** S2's own code-path check during S4's window. S4's baseline is +1 on this send. Orchestrator has told S4. Should not have happened. |
 
-Hold lifted 2026-09-06 ~16:55 by S4 (s4-live-activity), which now owns the
-device and coordinates all live sends. The 10:09 rows never reached the device
-(dummy tokens). Everything from 16:40 on was accepted for delivery. `apns-id`,
-`apns-unique-id`, payloads and headers for every row are in
-`logs/send-history.jsonl`; sends from the library entry point carry
-`source: "api.Sender"` and an optional `meta` block.
+Going forward: **S2 makes no self-initiated sends to that device for any
+reason**, including verifying its own code. Verification is `--dry-run` only, or
+via an orchestrator-cleared request. Sends happen only when S4 requests one.
+
+`apns-id`, `apns-unique-id`, payloads and headers for every row are in
+`logs/send-history.jsonl`; library sends carry `source: "api.Sender"` and an
+optional `meta` block.
 
 **Data point — `la-update` to a stale per-activity token (S4-A2):** the
 per-activity token was captured ~2 h before this send and its `Activity` may
@@ -279,6 +309,15 @@ path / env var explicitly.
 ---
 
 ## Driving the harness at rate (for S4)
+
+**Provenance note.** `apns_harness/api.py` was built on a direct request from
+the S4 session, *before* the orchestrator delegated that work. Under the
+orchestrator's coordination protocol S2 should have declined a peer's
+build request and referred it up. The orchestrator has since reviewed it and
+kept it: a rate ramp genuinely needs one connection + one cached JWT, and
+`TooManyProviderTokenUpdates` mid-ramp would corrupt S4's budget measurement,
+so it would have been built under delegation anyway. Recorded here so the
+history is honest.
 
 **Connection + token reuse.** `client.ApnsClient` holds one `httpx.Client(http2=True)`
 for its lifetime — sends on one instance reuse the pooled HTTP/2 connection (TLS
