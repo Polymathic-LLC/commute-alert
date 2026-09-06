@@ -47,6 +47,16 @@ xcodegen generate
 `project.yml` is the source of truth; `S3Probe.xcodeproj` is a build artifact that
 happens to be committed for convenience.
 
+**If you started this runbook before and hit `CoreDeviceError 3000` on install:**
+pull the fix first, then reopen:
+
+```
+git -C /Users/bradleybares/Git/commute-alert/.claude/worktrees/s3-apple-setup pull
+```
+
+(That commit adds the bundle-identifier keys the built `.app` was missing. In
+Xcode: **Product → Clean Build Folder** (⇧⌘K) before rebuilding.)
+
 ---
 
 ## Part 2 — Signing (Xcode)

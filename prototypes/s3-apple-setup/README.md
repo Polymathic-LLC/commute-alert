@@ -42,4 +42,14 @@ xcodebuild -project S3Probe.xcodeproj -scheme S3Probe \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build   # BUILD SUCCEEDED
 ```
 
+Installability gate (a build succeeding does not prove the bundle installs — see
+`FINDINGS.md` F11). On the built product:
+
+```
+APP=~/Library/Developer/Xcode/DerivedData/S3Probe-*/Build/Products/Debug-iphonesimulator/S3Probe.app
+plutil -p $APP/Info.plist | grep -E 'CFBundleIdentifier|CFBundleExecutable|CFBundlePackageType'
+plutil -p $APP/PlugIns/S3ProbeWidget.appex/Info.plist | grep -E 'CFBundleIdentifier|CFBundleExecutable|CFBundlePackageType'
+# values must be resolved strings, not $(PRODUCT_BUNDLE_IDENTIFIER)
+```
+
 Bundle IDs / topics are in `FINDINGS.md` §F5.
