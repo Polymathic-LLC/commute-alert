@@ -204,6 +204,45 @@ in-service data, `arrival_uncertainty`/`update_type` present and matching the fi
 corrections above. **7-day clock starts at 2026-09-06T14:07:17Z** (first successful SSE
 `connected` on both targets), not at initial deployment (13:00) and not at key-drop time.
 
+### First-day corroboration of S1a's commuter-rail-nulls finding (weekday-pending — Sunday sample)
+
+Orchestrator independently read container 101's data directly rather than trust this
+session's report, and confirmed the shape: one NDJSON line per SSE event with `received_at`,
+event type, and full attributes; both targets writing predictions/schedules/vehicles/alerts
+plus a connection log; both connected at 14:07:17Z after the earlier 406 retries.
+CR-Worcester having far fewer prediction lines than Red Line in the same window is sparse
+Sunday commuter-rail service plus reset-event batching, not a capture bug — checked before
+being flagged.
+
+Two records from the first minutes of capture corroborate S1a's medium-confidence
+commuter-rail-nulls finding on both sides at once:
+- **CR-Worcester prediction:** `arrival_uncertainty: null`, `update_type: null`,
+  `schedule_relationship: null` — consistent with S1a's 111/111 null rate on commuter rail.
+- **Red Line prediction:** `arrival_uncertainty: 360`, `update_type: "REVERSE_TRIP"`,
+  `schedule_relationship: "ADDED"` — the exact `REVERSE_TRIP` + `360` combination S1a
+  nominated as the strongest available ghost-train signal, seen within two minutes of
+  capture starting.
+
+This is one Sunday data point, not a settled result — the weekday commute windows are what
+actually answer whether this holds under real ridership. Flagging the pairing here so it
+isn't lost before the weekday sample comes in.
+
+### Fields captured that aren't in `docs/mbta-api.md`
+
+`last_trip`, `revenue`, `trip_headsign` are present in every captured prediction record but
+undocumented. Not a doc-edit priority now (per orchestrator), but flagging `revenue` for S6:
+a `NONREV` trip ID has already been observed on the Red Line in this capture. If a
+non-revenue move (deadhead, etc.) can surface as a rider-facing prediction, that's a
+trip-selection correctness question S6 should check for explicitly — filtering on `revenue`
+may need to be part of "which prediction is the user's train."
+
+### Independent monitoring
+
+Orchestrator is running its own 30-minute poll of container 101 for stalled line counts and
+new disconnects, as a second check independent of this session staying alive. This session's
+`connection_log.ndjson` per target remains the authoritative gap record — the orchestrator's
+monitor is a backstop, not a replacement.
+
 ## Open / not yet answered
 
 - **Whether `Last-Event-Id`-based resume actually works on reconnect** — implemented per
