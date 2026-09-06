@@ -13,7 +13,7 @@ Summary: The app is running on the physical iPhone (both the push-to-start token
 - [x] Token captured: APNs device token — `b8f4c129…` in tokens.md → S2 unblocked
 - [x] Token captured: Live Activity push-to-start token — `80dd43f6…` in tokens.md → S2 got a 200
 - [ ] Token captured: Live Activity per-activity push token — STILL the template placeholder; PERISHABLE (valid only while its activity lives)
-- [ ] Device section of tokens.md filled (iPhone model, exact iOS version, paired Apple Watch y/n) — S4 needs all three
+- [~] Device section of tokens.md: model = iPhone 15 Pro (iPhone16,1), iOS = 26.5 (both from tooling). Paired Apple Watch = STILL UNKNOWN (needs human; S4 batching it).
 - [ ] Result checklist at the bottom of tokens.md filled
 
 ## tokens.md location
@@ -40,7 +40,7 @@ Left at the WORKTREE path `…/.claude/worktrees/s3-apple-setup/prototypes/s3-ap
 3. Does the console show a new per-activity push token printed around 16:40?
    → If yes to (3): paste it into the `LIVE ACTIVITY per-activity push token` line of tokens.md immediately — it dies with the activity.
 
-**Also still needed:** fill the Device section of tokens.md — iPhone model, exact iOS version, paired Apple Watch yes/no (S4 needs all three; the Watch answer decides if one S4 question is measurable). And do the Part 6 local-start check to confirm a Live Activity actually renders from ActivityKit (not just that APNs accepted a push).
+**Device facts:** model = iPhone 15 Pro, iOS = 26.5 (both from Mac tooling, in tokens.md). **Paired Apple Watch: still need a yes/no from the human** — S4 is batching this into its ask. The Part 6 local-start render check and the per-activity token are now S4's to capture via its instrumentation.
 
 **Confirmations for the day-0 batch:**
 1. Paid Apple Developer Program membership active on team `MSQSPT8P3W`, your Apple ID on that team (App Manager or Admin). Free account will not work.
@@ -81,3 +81,5 @@ Left at the WORKTREE path `…/.claude/worktrees/s3-apple-setup/prototypes/s3-ap
 - **~16:39 EDT: the fix worked — app is running on the physical iPhone.** Human created `tokens.md` in the worktree and filled two of three: push-to-start token `80dd43f6…` and APNs device token `b8f4c129…`. S2 read both and got 200s from APNs (incl. a push-to-start send at 16:40:14). Per-activity token still unfilled; Device section still unfilled.
 - **Corrected stale STATUS.md** (orchestrator flagged it: every box was unticked despite two tokens demonstrably captured). Checklist now reflects real state. Relayed the orchestrator's urgent "look at the phone now" questions to the human (activity rendered? banner? per-activity token in console ~16:40?). Awaiting the human's on-device observation — nobody has yet confirmed anything actually appeared on the device; a 200 from APNs is "accepted", not "rendered".
 - Not sending any more pushes and not asking S2 to (orchestrator: every push drains the Live Activity update budget S4 must measure).
+- **Device facts pulled from tooling** and written into tokens.md: **iPhone 15 Pro (iPhone16,1)**, **iOS 26.5** (device newer than the 26.2 SDK — fine; current-OS push-to-start semantics). Paired Apple Watch still UNKNOWN (not visible to Mac-side tooling — a watch pairs to the phone).
+- **S4 (s4-live-activity) has taken over the device and the worktree.** It is instrumenting the probe app IN PLACE: adds `Sources/Shared/S4Log.swift` (App-Group NDJSON), a render-logging hook in `CommuteLiveActivity`, `Activity.activityUpdates` observation to capture push-started activities' per-activity tokens (the gap this session's `observe()` left), a collector panel, and ATS local-networking + `UIFileSharingEnabled` in Info.plist. I confirmed stand-down from worktree edits and handed over project gotchas (GENERATE_INFOPLIST_FILE trap, Shared→both-targets, Swift 5 mode, @MainActor AppDelegate, unverified widget signing, App-Group container check, two-process split). S3's remaining loose ends (per-activity token, render confirmation, Watch answer) are now folded into S4's harness and human ask.
