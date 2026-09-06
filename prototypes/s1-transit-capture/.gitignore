@@ -1,0 +1,7 @@
+.venv/
+.venv-local/
+data/
+captures/
+.secrets/
+__pycache__/
+*.pyc

@@ -1,0 +1,19 @@
+[Unit]
+Description=Commute Alert S1 MBTA stream recorder (prototype)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/commute-alert/s1-transit-capture
+ExecStart=/opt/commute-alert/s1-transit-capture/.venv/bin/python /opt/commute-alert/s1-transit-capture/recorder.py --out-dir /var/lib/commute-alert-s1/data
+Restart=always
+RestartSec=5
+# Keep-alive is two-layered: recorder.py supervises its own SSE/poll tasks
+# internally and reconnects on failure; this unit is the outer safety net
+# in case the whole process dies (OOM, unhandled exception, etc).
+StandardOutput=append:/var/log/commute-alert-s1/recorder.log
+StandardError=append:/var/log/commute-alert-s1/recorder.log
+
+[Install]
+WantedBy=multi-user.target
