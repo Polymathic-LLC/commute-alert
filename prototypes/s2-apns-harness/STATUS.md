@@ -1,34 +1,25 @@
-STATUS: BLOCKED
+STATUS: RUNNING
 
-Last updated: 2026-09-06 (day 0, after .p8 arrived)
-Summary: Harness is built, tested (33 unit tests), and now verified END TO END
-against the APNs sandbox with the REAL key — `.p8` auth works, the
-`com.polymathic.commutealert.s3probe` topic is accepted, and a bogus device
-token gets `400 BadDeviceToken` (i.e. we're past auth and topic). The ONLY
-remaining blocker is a real device token, which is S3's deliverable.
+Last updated: 2026-09-06 (day 0, evening — first real 200s)
+Summary: 3 of 5 push types sent successfully to S3's real device — `alert`,
+`background`, and `la-start` (push-to-start) all returned `200 OK` from the
+APNs sandbox. `la-update` / `la-end` are pending the per-activity push token
+(still a placeholder in S3's tokens.md — it only exists while a Live Activity
+runs). Also pending: device-side confirmation that anything actually rendered.
 
-## Needs from human
+## Needs from human / S3
 
-1. ~~APNs `.p8` provider key + Key ID~~ **DONE.** Key ID `42H763JTRN`, team
-   `MSQSPT8P3W`, in `.secrets/` in the main checkout. `doctor` is green;
-   `.p8` auth verified against the sandbox.
+1. ~~APNs `.p8` provider key~~ **DONE** (Key ID `42H763JTRN`).
 
-2. **A device token from S3** — the last blocker. It is not something this
-   session can fetch: a device token is issued by iOS to the S3 app running on a
-   physical iPhone. It comes out of S3's runbook
-   (`prototypes/s3-apple-setup/RUNBOOK.md`, branch `worktree-s3-apple-setup`),
-   a ~30–45 min hands-on Xcode + iPhone session that ends with three tokens
-   pasted into:
-     /Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md
-   The three:
-     - LIVE ACTIVITY push-to-start token      -> S2 `la-start`
-     - LIVE ACTIVITY per-activity push token  -> S2 `la-update` / `la-end`
-     - APNs device token (alert / background) -> S2 `alert` / `background`
-   Once that file exists this session's reader picks it up automatically
-   (verified against S3's format). For a first check, even just the
-   `APNs device token` row is enough to get a real `200` on `alert`.
+2. **Per-activity push token** — S3 needs to tap "① Start locally" in the probe
+   app and paste the `LIVE ACTIVITY per-activity push token` into its tokens.md
+   (currently the only unfilled row). Unblocks `la-update` and `la-end`.
+   The reader now auto-discovers S3's file whether it's in the main checkout or
+   the S3 worktree.
 
-No independent build work remains. Hence BLOCKED.
+3. **Device-side confirmation** (S3/S4, quick): with the phone in hand — did the
+   `la-start` push put a Live Activity on the lock screen? Did the `alert`
+   banner appear? A `200` only means APNs accepted it.
 
 ## Blocked-command log (background-session permission prompts)
 
@@ -61,6 +52,12 @@ No independent build work remains. Hence BLOCKED.
 - Added an APNs validation-order callout to the top of FINDINGS.md for S4.
 - Real `.p8` arrived (Key ID 42H763JTRN). `doctor` green; JWT signs. Verified
   end to end vs sandbox: `alert` / `la-start` / `background` to a bogus token
-  now return `400 BadDeviceToken` (was `403 InvalidProviderToken` with the
-  throwaway key) — auth + topic accepted. FINDINGS.md updated. Only a real
-  device token (S3) remains.
+  return `400 BadDeviceToken` (was `403 InvalidProviderToken`) — auth + topic ok.
+- S3 filled tokens.md (in the S3 worktree) with push-to-start + APNs device
+  tokens. Extended the token reader to auto-discover S3's file in any worktree,
+  and fixed placeholder detection so an unfilled row isn't masked by the next
+  row's hex. 33 tests pass.
+- Sent for real vs sandbox: `alert` → 200, `background` → 200, `la-start` → 200.
+  All carried both `apns-id` and `apns-unique-id` (sandbox does return the
+  latter — corrected in FINDINGS.md). `la-update` / `la-end` await the
+  per-activity token.

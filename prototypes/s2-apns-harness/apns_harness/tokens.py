@@ -50,6 +50,15 @@ def _candidate_paths() -> list[Path]:
         cands.append(Path(env).expanduser())
     cands.append(paths.MAIN_PROTOTYPE_ROOT.parent / "s3-apple-setup" / "tokens.md")
     cands.append(PROTOTYPE_ROOT.parent / "s3-apple-setup" / "tokens.md")
+    # S3 may run in its own worktree and drop tokens.md there rather than in the
+    # main checkout — check every worktree's copy, newest mtime first.
+    repo_root = paths.MAIN_PROTOTYPE_ROOT.parent.parent
+    wt_glob = sorted(
+        repo_root.glob(".claude/worktrees/*/prototypes/s3-apple-setup/tokens.md"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    cands.extend(wt_glob)
     # de-dup, keep order
     seen: set[Path] = set()
     out: list[Path] = []
@@ -190,9 +199,14 @@ def placeholder_roles(text: str) -> list[str]:
         role = _role_for_label(line)
         if role is None:
             continue
-        window = " ".join(
-            lines[j].lower() for j in range(i + 1, min(i + 1 + _LOOKAHEAD, len(lines)))
-        )
+        # Scan only up to the NEXT label line, so one token's placeholder is not
+        # masked by the following token's hex.
+        seg: list[str] = []
+        for j in range(i + 1, min(i + 1 + _LOOKAHEAD, len(lines))):
+            if _role_for_label(lines[j]) is not None:
+                break
+            seg.append(lines[j].lower())
+        window = " ".join(seg)
         if not HEX_RUN.search(window) and any(h in window for h in _PLACEHOLDER_HINTS):
             out.append(role)
     return out

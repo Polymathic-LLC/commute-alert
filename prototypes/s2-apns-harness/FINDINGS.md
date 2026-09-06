@@ -24,26 +24,44 @@ equivalent curl) with no credentials or network. 33 unit tests pass.
 
 ## Q: Does `.p8` provider-token (JWT) auth work end to end against the sandbox?
 
-**Answer: Yes.** With the real key (Key ID `42H763JTRN`, team `MSQSPT8P3W`),
-APNs accepts the JWT and the `com.polymathic.commutealert.s3probe` topic. A send
-to a **bogus** device token now returns **`400 BadDeviceToken`** — not the
-`403 InvalidProviderToken` we got with the throwaway key. The failure moved past
-auth and past topic validation to the device token, which is exactly the
-progression that proves auth works. Same result for `la-start` and `background`.
-The only thing between here and a `200` is a real device token.
+**Answer: Yes — confirmed with `200 OK` on real device tokens.** Key ID
+`42H763JTRN`, team `MSQSPT8P3W`, topic `com.polymathic.commutealert.s3probe`.
 
-Evidence, all against `https://api.sandbox.push.apple.com`:
+Sends against `https://api.sandbox.push.apple.com` with S3's real tokens:
+
+| Push type | Token | Result |
+|---|---|---|
+| `alert` | APNs device token (64-hex) | **`200 OK`** |
+| `background` | APNs device token (64-hex) | **`200 OK`** |
+| `la-start` (push-to-start) | push-to-start token (160-hex) | **`200 OK`** |
+| `la-update` | per-activity token | not yet — token still a placeholder in S3's file |
+| `la-end` | per-activity token | not yet — same |
+
+Earlier auth-progression evidence (documents the failure ladder):
 
 - Throwaway P-256 key (unknown `kid`): **`403 InvalidProviderToken`**.
 - No `authorization` header: **`403 MissingProviderToken`**.
-- **Real key**, bogus device token, `alert` / `la-start` / `background`:
-  **`400 BadDeviceToken`** for all three.
-- Over **HTTP/1.1**: `RemoteProtocolError: illegal request line` — APNs refuses
-  at the protocol level. **HTTP/2 is mandatory**, confirmed, not just
-  documented. `httpx[http2]` (h2 4.x) negotiates HTTP/2 fine.
+- Real key, **bogus** device token: **`400 BadDeviceToken`** (alert / la-start /
+  background) — past auth and topic, stops at the token.
+- HTTP/1.1: `RemoteProtocolError: illegal request line` — APNs refuses at the
+  protocol level. **HTTP/2 is mandatory**, confirmed. `httpx[http2]` (h2 4.x)
+  negotiates it fine.
 
-**Confidence: high.** `.p8` auth + topic handling verified end to end this
-session. `200 OK` still needs a real device token (S3).
+**Confidence: high** for the three `200`s (accepted for delivery). Whether the
+push-to-start Live Activity actually *rendered* on the lock screen is a
+device-side observation for S3/S4, not visible from the APNs response.
+
+---
+
+## Q: Does the sandbox return `apns-unique-id`?
+
+**Answer: Yes.** Every `200 OK` from `api.sandbox.push.apple.com` this session
+carried both `apns-id` (our UUID, echoed) and a distinct `apns-unique-id`
+(APNs-assigned, e.g. `44fedd3f-2ddc-89d3-437b-bf97edc74e68`). Earlier this doc
+listed `apns-unique-id` as possibly prod-only — that was wrong; sandbox returns
+it. Both are logged in `send-history.jsonl`, so S4 can correlate on either.
+
+**Confidence: high.** Observed on all three successful sends.
 
 ---
 
@@ -154,11 +172,16 @@ all three, to the correct roles. Specific hazards checked:
 
 ---
 
-## Still open (needs the real `.p8`, Key ID, Team ID, bundle id + a device token)
+## Still open
 
-1. A `200 OK` on a valid provider token.
-2. The token/topic failure-mode table above, observed rather than cited.
-3. End-to-end delivery of each of the five push types to a real device
-   (coordinate with S3/S4 for tokens) — the DERISKING "done when" bar.
-4. Whether sandbox `apns-id` correlation is enough for S4, or S4 also needs the
-   `apns-unique-id` (only returned by the production environment).
+1. ~~A `200 OK` on a valid provider token.~~ **Done** — alert, background,
+   la-start.
+2. **`la-update` and `la-end`** — need the per-activity push token, which is
+   still a `<paste …>` placeholder in S3's `tokens.md` (it only exists while a
+   Live Activity is running; S3 must tap "① Start locally" and copy it).
+3. **Device-side confirmation.** A `200` means APNs accepted the push, not that
+   anything showed. Whether the `la-start` actually put a Live Activity on the
+   lock screen, and whether the `alert` banner appeared, are S3/S4 observations.
+4. The rest of the failure-mode table (wrong-environment token, wrong topic,
+   expired LA token, `Unregistered`, `BadCollapseId`) — reachable now that auth
+   works, but each needs a real token deliberately broken in that one way.
