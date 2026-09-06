@@ -51,20 +51,28 @@ happens to be committed for convenience.
 
 ## Part 2 — Signing (Xcode)
 
+The project already carries `DEVELOPMENT_TEAM = MSQSPT8P3W` and automatic signing
+(from `project.yml`), so this is mostly **confirmation** — but you still have to
+let Xcode do the one-time App ID / App Group / profile registration, once per
+target. The sources build clean from a cold cache on this exact Mac (Xcode 26.2),
+so anything that goes red here is signing/provisioning, not code.
+
 Do this for **both** targets.
 
 1. In the Project navigator (left), click the blue **S3Probe** project icon at the
    top.
 2. Under **TARGETS**, select **S3Probe**.
 3. Open the **Signing & Capabilities** tab.
-4. Tick **Automatically manage signing**.
-5. Set **Team** to the team whose ID is `MSQSPT8P3W`.
-6. Watch the status line under Team. Xcode will register the App ID, the App Group
+4. Confirm **Automatically manage signing** is ticked and **Team** already shows
+   the team whose ID is `MSQSPT8P3W`. If Team shows "None" or an error, pick the
+   right team from the dropdown.
+5. Watch the status line under Team. Xcode registers the App ID, the App Group
    `group.com.polymathic.commutealert.s3probe`, and the Push Notifications
-   capability, then create a provisioning profile. This takes 10–30 s. If it shows
-   a red error, see **Troubleshooting**.
-7. Under **TARGETS**, now select **S3ProbeWidget** and repeat steps 3–6 (same
-   team, automatic signing).
+   capability, then creates a provisioning profile — 10–30 s. **If it goes red,
+   copy the exact message** (it names the real cause) and check **Troubleshooting**
+   or paste it to the agent.
+6. Under **TARGETS**, now select **S3ProbeWidget** and repeat steps 3–5. It gets
+   its own App ID (`...s3probe.widget`) and profile, and shares the App Group.
 
 You should already see these capability tiles (they come from the checked-in
 entitlements / Info.plist, you do **not** add them by hand):
@@ -100,6 +108,12 @@ click the refresh arrow if one appears.
 4. The app launches to a screen titled **S3 Probe**.
 5. Open the Xcode console: **View → Debug Area → Activate Console** (⌘⇧C / ⌘⇧Y).
    Every event is logged with an `[S3]` prefix — the tokens are printed there too.
+
+> **Capture the APNs device token now, before anything else.** It appears in the
+> **Tokens** section (and console) within ~5 s of this first launch, and it alone
+> unblocks other work downstream. Copy it straight into `tokens.md` (Part 7)
+> immediately — don't wait for Parts 5–7. The push-to-start token usually lands in
+> the same few seconds; grab that too if it's there.
 
 ---
 

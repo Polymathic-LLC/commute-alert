@@ -1,6 +1,20 @@
-STATUS: BLOCKED
-Last updated: 2026-09-06 (agent local, day 0)
-Summary: Agent-side S3 work is complete and verified — Swift sources + a generated Xcode project for the throwaway Live Activity probe both build clean against the iOS 26.2 SDK (simulator and device slices). Everything remaining requires a human with Xcode + an Apple Developer account + a physical iPhone. The single end-to-end runbook is RUNBOOK.md. No independent work remains, so status is BLOCKED rather than RUNNING.
+STATUS: RUNNING
+Last updated: 2026-09-06 (agent local, day 0 — human now attached, working RUNBOOK.md interactively)
+Summary: Agent-side S3 work is complete and verified. The human is attached and working RUNBOOK.md step by step with the agent driving. Critical path for S2 (device token → failure catalogue), S4, and S5. Progress tracked in the checklist below; tokens will be reported to the orchestrator the moment each one appears.
+
+## Runbook progress (live)
+
+- [ ] Project opens in Xcode 26.2 from the worktree
+- [ ] Automatic signing OK — S3Probe target (App ID + App Group + Push registered)
+- [ ] Automatic signing OK — S3ProbeWidget target
+- [ ] Developer Mode on + device trusted
+- [ ] App builds & runs on the physical iPhone
+- [ ] Notification permission granted; "Activities enabled" = yes
+- [ ] **S3 pass/fail:** Live Activity appears on Lock Screen from local start (no push)
+- [ ] Token captured: APNs device token  → unblocks S2 alert/background
+- [ ] Token captured: Live Activity push-to-start token
+- [ ] Token captured: Live Activity per-activity push token
+- [ ] tokens.md filled in the MAIN checkout
 
 ## What a human needs to do — one sitting, ~30–45 min
 
@@ -50,3 +64,4 @@ Summary: Agent-side S3 work is complete and verified — Swift sources + a gener
 - Committed prototype. Status → BLOCKED pending human execution of RUNBOOK.md.
 - Orchestrator review: re-verified team ID `MSQSPT8P3W` + topic format `<bundle-id>.push-type.liveactivity` against the main checkout (`ios/CLAUDE.md`, `docs/push-flow.md`) — both intact, no conclusion rested on a missing file. Redirected the token drop-off to the main checkout: created `/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/{tokens.example.md,WHERE-IS-THE-PROJECT.md}`; updated RUNBOOK.md Part 7 + tokens.example.md to the absolute path.
 - Orchestrator resolved logistics: human opens the project from this worktree in place (git-locked, not pruned); no second worktree, no merge to main. Orchestrator also fixed the real gap that `tokens.md` was not matched by the repo-root `.gitignore` (added `prototypes/**/tokens.md`, verified with `git check-ignore`). Recorded as FINDINGS.md §F7–F8.
+- Human on a planned break until ~13:30 EDT; holding. Used the gap to: verify a cold-cache clean build (BUILD SUCCEEDED, and fixed the one Swift-6-mode Sendable warning in AppDelegate by making the class `@MainActor`); tighten RUNBOOK Part 2 (signing is pre-wired, so it's confirm-not-configure) and add an "capture the device token first, report it immediately" callout after Part 4; record toolchain specifics as FINDINGS.md §F10. No tokens captured yet (human hadn't started).

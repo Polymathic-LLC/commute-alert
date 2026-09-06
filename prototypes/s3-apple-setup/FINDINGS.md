@@ -109,6 +109,32 @@ Fixed, not placeholders:
   (`/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md`)
   so S2/S4 read them independent of the worktree.
 
+## F10. Toolchain specifics worth carrying forward (Xcode 26.2 / iOS 26 SDK)
+
+Recorded because layer-2 iOS work and any CI config will hit the same environment.
+
+- **Versions:** Xcode 26.2 (17C52), Swift 6.2 compiler, iOS 26.2 device + simulator
+  SDKs. `RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET` is 15.0; this prototype pins
+  **17.2** (Live Activity push-to-start floor) and builds fine.
+- **XcodeGen 2.46.0** emits a project Xcode 26.2 opens with no migration prompt
+  (`objectVersion` 77, `PBXFileSystemSynchronizedRootGroup` folder groups). Scheme
+  is generated shared under `xcshareddata/`.
+- **`SWIFT_VERSION = 5.0` is load-bearing here.** With the Swift 6.2 toolchain the
+  default would be Swift 6 language mode, which turns Sendable / actor-isolation
+  warnings into errors. One real case surfaced: a `UIApplicationDelegate` method
+  receiving `[AnyHashable: Any]` `userInfo`. Fix that also holds under Swift 6
+  mode: annotate the whole `AppDelegate` `@MainActor` so the non-Sendable payload
+  never crosses an actor boundary (the callbacks are main-thread anyway). The real
+  `ios/` target should decide Swift 6 vs 5 mode deliberately — this prototype
+  chose 5 to stay a throwaway.
+- **Cold-cache reproducibility:** `rm -rf ~/Library/Developer/Xcode/DerivedData/S3Probe-* && xcodebuild ... clean build`
+  → **BUILD SUCCEEDED**, zero warnings. So a build failure the human sees in the
+  runbook is environment/signing, not the sources.
+- **Unsigned device-slice build works** (`-sdk iphoneos CODE_SIGNING_ALLOWED=NO
+  CODE_SIGNING_REQUIRED=NO`) — handy for a compile gate in CI without a signing
+  identity.
+- **Confidence.** High — all verified on this machine.
+
 ## F9. The throwaway content-state is deliberately not the production contract
 
 `CommuteActivityAttributes.ContentState` here carries `v`, `displayStatus`,
