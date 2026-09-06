@@ -1,20 +1,19 @@
-STATUS: RUNNING
-Last updated: 2026-09-06 ~16:45 EDT (agent local) — human working RUNBOOK.md; 2 of 3 tokens captured
-Summary: The app is running on the physical iPhone (both the push-to-start token and the APNs device token have been issued and are in tokens.md — S2 has used both and got 200s from APNs). Still open: the per-activity push token, the local-start Live Activity render check, and the Device section of tokens.md. An orchestrator report says S2 sent a push-to-start at 16:40 EDT and APNs returned 200 — waiting on the human to look at the phone and confirm whether an activity actually appeared and whether a per-activity token printed.
+STATUS: DONE
+Last updated: 2026-09-06 ~17:05 EDT (agent local)
+Summary: S3 done-when is met. On an iPhone 15 Pro / iOS 26.5: automatic signing on team MSQSPT8P3W produced a working install, the app builds/installs/launches, `Activity.request` renders a Live Activity on the lock screen with no push involved (human-confirmed), and all three tokens (push-to-start, per-activity, APNs device) are in tokens.md and have been used by S2 against APNs. S4 now owns the device and is instrumenting the probe app in place. One non-blocking human fact still open: is an Apple Watch paired (S4 is asking).
 
-## Runbook progress (live)
+## Runbook progress (final)
 
 - [x] Project opens in Xcode 26.2 from the worktree
-- [x] App builds & runs on the physical iPhone (device tokens issued ⇒ signing + install + launch all worked; CoreDeviceError 3000 resolved by the GENERATE_INFOPLIST_FILE fix, commit 8cc68b7)
-- [~] Automatic signing — S3Probe target: OK (app installed). S3ProbeWidget target: not separately confirmed.
-- [x] Developer Mode on + device trusted (implied by a successful device install)
-- [ ] Notification permission granted; "Activities enabled" = yes — NOT confirmed
-- [ ] **S3 pass/fail:** Live Activity appears on Lock Screen from LOCAL start (no push) — NOT done (per-activity token still a placeholder)
-- [x] Token captured: APNs device token — `b8f4c129…` in tokens.md → S2 unblocked
-- [x] Token captured: Live Activity push-to-start token — `80dd43f6…` in tokens.md → S2 got a 200
-- [ ] Token captured: Live Activity per-activity push token — STILL the template placeholder; PERISHABLE (valid only while its activity lives)
-- [~] Device section of tokens.md: model = iPhone 15 Pro (iPhone16,1), iOS = 26.5 (both from tooling). Paired Apple Watch = STILL UNKNOWN (needs human; S4 batching it).
-- [ ] Result checklist at the bottom of tokens.md filled
+- [x] Automatic signing on team MSQSPT8P3W → working install (no manual portal steps reported). Widget target not called out separately but the embedded extension installed and ran.
+- [x] Developer Mode on + device trusted
+- [x] App builds & runs on the physical iPhone (CoreDeviceError 3000 en route was a project bug — the GENERATE_INFOPLIST_FILE trap, commits 8cc68b7/f144117 — not signing)
+- [x] **S3 pass/fail:** Live Activity renders on the lock screen from a LOCAL start, no push — human-confirmed
+- [x] Token captured: APNs device token — `b8f4c129…`
+- [x] Token captured: Live Activity push-to-start token — `80dd43f6…`
+- [x] Token captured: Live Activity per-activity push token — `80ce8fb3…` (captured by hand off the console; see FINDINGS §F12 for the API-surface gap that made it manual)
+- [x] Device facts: iPhone 15 Pro (iPhone16,1), iOS 26.5 (from Mac tooling)
+- [ ] Paired Apple Watch — still unknown, S4 asking the human (non-blocking for S3)
 
 ## tokens.md location
 
@@ -34,25 +33,21 @@ Left at the WORKTREE path `…/.claude/worktrees/s3-apple-setup/prototypes/s3-ap
 
 ## Needs from human
 
-**URGENT / time-sensitive (asked ~16:45 EDT, awaiting answer):** S2 sent a push-to-start at 16:40:14 EDT, APNs returned 200. If it rendered, an activity is now live on the phone with its own perishable per-activity token. Human, please check the phone + Xcode console and report:
-1. Is there a Live Activity on the lock screen that nobody started by hand? What does it say?
-2. Did an alert banner ("Commute monitoring started" / "Worcester Line delay") appear?
-3. Does the console show a new per-activity push token printed around 16:40?
-   → If yes to (3): paste it into the `LIVE ACTIVITY per-activity push token` line of tokens.md immediately — it dies with the activity.
+**Nothing blocking for S3 — it is DONE.** The earlier "check the phone / grab the per-activity token" question is dropped: S4 owns the device and the human now, and S2 has root-caused the 16:40 push-to-start silence (payload used snake_case keys against the camelCase ContentState; ActivityKit's decoder doesn't convertFromSnakeCase and rejects missing non-optional keys → iOS decoded nothing while APNs returned 200; the app was fine). FINDINGS §F12.
 
-**Device facts:** model = iPhone 15 Pro, iOS = 26.5 (both from Mac tooling, in tokens.md). **Paired Apple Watch: still need a yes/no from the human** — S4 is batching this into its ask. The Part 6 local-start render check and the per-activity token are now S4's to capture via its instrumentation.
+**Still open, non-blocking, S4 is asking the human:** is an Apple Watch paired to the iPhone (yes/no + watchOS version)? Decides whether S4's watch-mirroring question is measurable.
 
-**Confirmations for the day-0 batch:**
-1. Paid Apple Developer Program membership active on team `MSQSPT8P3W`, your Apple ID on that team (App Manager or Admin). Free account will not work.
-2. Physical iPhone on iOS 17.2+ (18+ preferred) — report model + exact iOS version.
-3. Developer Mode enabled on that iPhone (Settings → Privacy & Security → Developer Mode), then reboot.
-4. iPhone USB cable; tap "Trust This Computer" on first connect.
-5. Xcode 26.2 signed into that Apple ID (already installed on this Mac).
-6. Paired Apple Watch — yes/no. Only affects one S4 question; nothing blocks on it.
+**Historical — day-0 confirmations, all now satisfied:**
+1. Paid Apple Developer Program on team `MSQSPT8P3W` — satisfied (working install produced).
+2. Physical iPhone — iPhone 15 Pro, iOS 26.5.
+3. Developer Mode — enabled.
+4. Trust This Computer — done.
+5. Xcode signed in — yes.
+6. Paired Apple Watch — still the one open item (above).
 
-**Then work `RUNBOOK.md` end to end** and report back via the checklist in `tokens.md`:
-- Did automatic signing succeed with NO manual developer-portal steps?
-- Did the Live Activity appear on the Lock Screen from the local (no-push) start?
+**RUNBOOK.md report-back (for the record):**
+- Automatic signing: succeeded, no manual portal steps reported.
+- Live Activity on the lock screen from a local (no-push) start: yes, confirmed.
 - Were all three tokens captured?
 - iPhone model + iOS version; Apple Watch paired y/n.
 
@@ -83,3 +78,4 @@ Left at the WORKTREE path `…/.claude/worktrees/s3-apple-setup/prototypes/s3-ap
 - Not sending any more pushes and not asking S2 to (orchestrator: every push drains the Live Activity update budget S4 must measure).
 - **Device facts pulled from tooling** and written into tokens.md: **iPhone 15 Pro (iPhone16,1)**, **iOS 26.5** (device newer than the 26.2 SDK — fine; current-OS push-to-start semantics). Paired Apple Watch still UNKNOWN (not visible to Mac-side tooling — a watch pairs to the phone).
 - **S4 (s4-live-activity) has taken over the device and the worktree.** It is instrumenting the probe app IN PLACE: adds `Sources/Shared/S4Log.swift` (App-Group NDJSON), a render-logging hook in `CommuteLiveActivity`, `Activity.activityUpdates` observation to capture push-started activities' per-activity tokens (the gap this session's `observe()` left), a collector panel, and ATS local-networking + `UIFileSharingEnabled` in Info.plist. I confirmed stand-down from worktree edits and handed over project gotchas (GENERATE_INFOPLIST_FILE trap, Shared→both-targets, Swift 5 mode, @MainActor AppDelegate, unverified widget signing, App-Group container check, two-process split). S3's remaining loose ends (per-activity token, render confirmation, Watch answer) are now folded into S4's harness and human ask.
+- **~17:00 EDT: STATUS → DONE.** Re-read tokens.md (lesson: read the file, don't report from memory of what I asked for) — all three tokens are present, the per-activity token `80ce8fb3…` was filled by the human out-of-band. Orchestrator confirmed the S3 done-when is met: Live Activity started locally on a physical device + both token types captured. Recorded FINDINGS §F12 (the `activityUpdates` API-surface gap + S2's snake_case decode root-cause) and marked §F4 resolved. Dropped the phone-observation question — S4 owns the human. Staying reachable for project-level snags from S4/S5.

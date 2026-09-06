@@ -61,21 +61,29 @@ with a physical device.
   not silently assumed handled.
 - **Confidence.** High on the diagnosis; the fix is out of S3 scope.
 
-## F4. OPEN — everything that needs the physical device
+## F4. RESOLVED — the physical-device checks all passed
 
-Cannot be answered on this machine. Folded into `RUNBOOK.md` for the human, and
-into the day-0 batched ask via the orchestrator. Specifically unproven until the
-runbook is worked:
+Worked through `RUNBOOK.md` on 2026-09-06 with the human, on an **iPhone 15 Pro,
+iOS 26.5**. Results:
 
-- Automatic signing creates the App IDs + provisioning profiles for the app, the
-  widget, the App Group `group.com.polymathic.commutealert.s3probe`, and the Push
-  Notifications capability, on team `MSQSPT8P3W`, without manual portal work.
-- The app installs and launches on the device.
-- `Activity.request(...)` succeeds and a Live Activity appears on the lock screen
-  with **no push involved** — the S3 "done" bar.
-- The Live Activity **push-to-start** token is issued (needs iOS 17.2+) and the
-  **per-activity** push token is issued after a local start.
-- The standard **APNs device token** is issued (for S2/S4 alert + background push).
+- **Automatic signing** on team `MSQSPT8P3W` produced a working install with no
+  reported manual developer-portal steps. (One install failure along the way —
+  `CoreDeviceError 3000` — was a project bug, not signing; see F11.) Widget-target
+  signing was not called out separately but the app + embedded extension
+  installed and ran.
+- **App installs and launches** on the device. ✓
+- **`Activity.request(...)` renders a Live Activity on the lock screen with no
+  push involved** — the S3 done-bar. ✓ (human-confirmed)
+- **Push-to-start token** issued, **per-activity token** issued (captured by hand
+  off the console — see F12), **APNs device token** issued. All three in
+  `tokens.md`; S2 has used all three against APNs.
+- Alert-banner delivery also observed working (via S2) — so APNs delivery and
+  ActivityKit rendering are both confirmed independently.
+
+Still not answered here (correctly — they belong to S4/S5, which now own the
+device): Live Activity update budget, push-to-start reliability across
+force-quit/reboot, App Attest. And one human fact still outstanding: **is an Apple
+Watch paired** (S4 is asking).
 
 ## F5. Bundle identifiers and the derived APNs topics (for S2 / S4)
 
@@ -113,6 +121,53 @@ Fixed, not placeholders:
   pruned. Tokens still get pasted into the **main-checkout** path
   (`/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md`)
   so S2/S4 read them independent of the worktree.
+
+## F12. S3 done-when met — and a real ActivityKit API-surface gap in token capture
+
+- **Done-when (DERISKING S3):** "a Live Activity can be started locally on a
+  physical device and both token types have been captured." Both met:
+  - Local start renders a Live Activity on the iPhone 15 Pro lock screen (no push
+    involved) — confirmed by the human.
+  - All three tokens are in `tokens.md`: Live Activity **push-to-start**
+    (`80dd43f6…`), Live Activity **per-activity** (`80ce8fb3…`), and the plain
+    **APNs device** token (`b8f4c129…`). S2 has driven all three against APNs.
+  - The per-activity token was captured **by hand** off the Xcode console.
+
+- **The gap that made it "by hand": `observe()` in `LiveActivityController` only
+  wires token/state observation for activities THIS app instance started.** A
+  Live Activity created by **push-to-start** (or one adopted after an app
+  relaunch) is delivered through `Activity<Attributes>.activityUpdates`, and its
+  per-activity `pushToken` / `pushTokenUpdates` are only reachable if you iterate
+  that sequence and attach an observer to each activity as it appears. The probe
+  as written this session does not, so a push-started activity's token is simply
+  lost — you would never see it unless you also started one locally.
+  - This is a legitimate finding about the API surface, not just a probe bug:
+    **there is no single "give me every activity's push token" callback.** A
+    real client must run `Activity.activityUpdates` for the lifetime of the app
+    AND, on every launch, enumerate `Activity<Attributes>.activities` to re-adopt
+    ones started while it was dead — otherwise push-to-start plus
+    "backend restarts and re-adopts" (operations.md) cannot both work.
+  - S4 is adding exactly this instrumentation (`activityUpdates` observation) to
+    the probe so push-started tokens are captured automatically. Feeds the
+    `live_activities` / restart-reconciliation open items in `push-flow.md` and
+    `operations.md`.
+
+- **Why the 16:40 push-to-start produced no visible activity (root cause: S2).**
+  The push payload used `snake_case` content-state keys against this prototype's
+  `camelCase` `ContentState`. ActivityKit's decoder does **not**
+  `convertFromSnakeCase` and rejects a payload missing any non-optional key, so
+  iOS decoded nothing while APNs still returned 200. Nothing was wrong with the
+  app — local start rendering and the alert banner rendering already proved
+  ActivityKit and APNs delivery both work. Carry-forward: the Live Activity push
+  payload and the `ContentState` Codable struct must agree on **exact key names**,
+  not just field set — a contract test that only checks the field set would pass
+  this broken payload. (`push-flow.md` "Payload Contract", `display-contract.md`
+  content-state compatibility.)
+
+- **Confidence.** High. Tokens verified present in `tokens.md`; the
+  `activityUpdates` gap is a direct reading of the ActivityKit API; the decode
+  root-cause is S2's, cross-referenced here because it concerns this prototype's
+  `ContentState`.
 
 ## F11. `xcodebuild` success is not an installability check — and `GENERATE_INFOPLIST_FILE=NO` silently drops required bundle keys
 
