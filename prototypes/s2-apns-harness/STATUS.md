@@ -1,13 +1,18 @@
-STATUS: RUNNING (serving S4)
+STATUS: RUNNING (idle — awaiting orchestrator direction)
 
-Last updated: 2026-09-06 (day 0, night — hold lifted, serving S4)
+Last updated: 2026-09-06 (day 0, night — orchestrator corrective protocol received)
 Summary: All 5 push types have been accepted by APNs (`200 OK`) against the
-sandbox with S3's real tokens. S4 (s4-live-activity) took over the device and
-lifted the send hold ~16:55; S2 now runs sends on S4's schedule. Delivered a
-library entry point (`apns_harness/api.py` — `Sender`) for S4's rate ramp:
-one HTTP/2 connection + one cached JWT for the whole loop, every send in the
-canonical `send-history.jsonl`. CLI now routes through it too — one code path.
-42 tests pass.
+sandbox with S3's real tokens. `apns_harness/api.py` (`Sender`) is in place as
+the loop entry point; CLI routes through it; 42 tests pass. The harness is
+functionally complete.
+
+Orchestrator issued a corrective protocol: all coordination and human asks go
+through the orchestrator, not peer sessions or the user; S2 does not build
+features or negotiate scope on peer request. S2 acted on S4's direct requests
+(2 baseline sends + a verification send + building `api.py`) *before* that
+message landed — reported to the orchestrator. Now idle: no sends, no new work,
+until the orchestrator directs. S2 remains the mechanical send path when the
+orchestrator delegates a send.
 
 ## Needs from human / S3 / orchestrator
 
