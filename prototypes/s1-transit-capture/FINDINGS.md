@@ -195,16 +195,21 @@ creating a wholly separate LXC.
 
 ---
 
+## Capture started
+
+The MBTA API key landed at 2026-09-06T14:0x. Redeployed via `./deploy/deploy.sh`; both SSE
+connections went from `406`/backoff to `connected` within ~200ms of the key reaching the
+container. Sampled a live `reset` event on Red Line/Harvard immediately after — real
+in-service data, `arrival_uncertainty`/`update_type` present and matching the field-shape
+corrections above. **7-day clock starts at 2026-09-06T14:07:17Z** (first successful SSE
+`connected` on both targets), not at initial deployment (13:00) and not at key-drop time.
+
 ## Open / not yet answered
 
-- **Actual 7-day capture has not started** — blocked on the MBTA API key (STATUS.md).
-  Recorder is deployed and ready; the systemd unit is installed but not yet enabled, pending
-  the key landing in `.secrets/mbta.env` so it isn't started keyless and then need a restart
-  mid-stream (a restart is fine and gets logged as a gap, but there's no reason to burn a
-  gap on something avoidable).
 - **Whether `Last-Event-Id`-based resume actually works on reconnect** — implemented per
   MBTA's documented support for it, but not yet verified against a real reconnect under
-  load (needs the key + a live multi-hour run).
+  load. Will confirm opportunistically as real reconnects happen over the week rather than
+  forcing one.
 - Every question under "Questions to answer" in DERISKING.md's S1 section (concurrent
   prediction counts, trip_id reconciliation, no-prediction-for-scheduled-trip rate, vehicle
   staleness distribution, `AT_TERMINAL` correspondence to reality, SSE connection
