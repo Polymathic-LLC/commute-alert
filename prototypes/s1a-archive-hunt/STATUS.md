@@ -2,6 +2,11 @@ STATUS: DONE
 
 Last updated: 2026-09-06 ~10:00 ET
 
+> **Where this lives.** This session ran isolated in
+> `.claude/worktrees/s1a-archive-hunt`, so these files are *not* in the main
+> checkout's `prototypes/`. Read them by absolute path, or merge branch
+> `worktree-s1a-archive-hunt` (commit `6ede898`).
+
 **Summary: NO usable prediction-level archive exists. Live capture stays on the
 critical path — S6 cannot be started early on the threshold questions.** One real
 archive was found, for **alerts only**, and it unblocks S6's alert work today.
