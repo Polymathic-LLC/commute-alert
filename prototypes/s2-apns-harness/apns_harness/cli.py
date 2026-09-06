@@ -29,6 +29,7 @@ from .payloads import (
     example_payload,
     inject_timestamp,
     parse_payload,
+    refresh_updated_at,
     validate,
 )
 
@@ -176,6 +177,8 @@ def cmd_send(args: argparse.Namespace) -> int:
     if push_type.topic_kind == "liveactivity":
         if inject_timestamp(payload):
             _eprint("  (injected aps.timestamp = now)")
+        if not args.keep_updated_at and refresh_updated_at(payload):
+            _eprint("  (refreshed content-state.updatedAt = now, ISO-8601)")
         if args.dismissal_in is not None:
             payload["aps"]["dismissal-date"] = int(time.time()) + args.dismissal_in
         elif args.dismissal_date is not None:
@@ -313,6 +316,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--ttl", type=int, help="seconds from now; sets apns-expiration")
     s.add_argument("--dismissal-in", type=int, help="la-end: dismissal-date = now + N seconds")
     s.add_argument("--dismissal-date", type=int, help="la-end: dismissal-date (unix seconds)")
+    s.add_argument(
+        "--keep-updated-at",
+        action="store_true",
+        help="do not auto-refresh aps.content-state.updatedAt (send the payload's value as-is)",
+    )
     s.add_argument("--topic", help="apns-topic override (advanced / debugging)")
     s.add_argument("--force-token-refresh", action="store_true", help="mint a fresh provider JWT")
     s.add_argument("--dry-run", action="store_true", help="print the request; send nothing")

@@ -1,14 +1,16 @@
 STATUS: RUNNING (live-send hold in effect)
 
-Last updated: 2026-09-06 (day 0, evening — first real 200s, then send hold)
-Summary: 3 of 5 push types sent successfully to S3's real device — `alert`,
-`background`, `la-start` (push-to-start) → `200 OK` from the APNs sandbox.
-Then the orchestrator put S2 on a **live-send hold**: no more pushes to that
-device until S4 (which owns the Live Activity update-budget measurement)
-coordinates, so its budget baseline isn't drawn down by uninstrumented S2
-traffic. Remaining `la-update` / `la-end` work continues as dry-run + payload
-validation only. All traffic S2 has sent is logged in FINDINGS.md with
-timestamps for S4 to subtract.
+Last updated: 2026-09-06 (day 0, late evening — root-caused the no-Live-Activity)
+Summary: 3 of 5 push types returned `200 OK` from the APNs sandbox (`alert`,
+`background`, `la-start`). Device check: the `alert` banner showed; the
+`la-start` did NOT start a Live Activity. Root cause found — the example
+payload's `attributes` / `content-state` used invented snake_case keys instead
+of S3's Swift struct property names (`routeName`, `displayStatus`, `updatedAt`,
+…), so iOS accepted the push and decoded nothing. Fixed in
+`payloads/live-activity-*.json` + `example_payload()`, guarded by a unit test.
+NOT re-sent — S2 is on a **live-send hold** (S4 owns the Live Activity
+update-budget measurement and the device). All three tokens are now in S3's
+tokens.md. 35 tests pass.
 
 ## Needs from human / S3 / orchestrator
 
@@ -18,14 +20,14 @@ timestamps for S4 to subtract.
    device, so `la-update` / `la-end` and the failure-mode catalogue can be sent
    for real. S2 is the send mechanism; S4 is the experiment designer.
 
-3. **Per-activity push token** — still the only unfilled row in S3's tokens.md.
-   S3: tap "① Start locally" in the probe app, copy the `LIVE ACTIVITY
-   per-activity push token`, paste it in. Needed before `la-update` / `la-end`
-   can be sent (dry-run already validates the shape). No rush given (2).
+3. ~~Per-activity push token~~ **DONE** — all three tokens now in S3's
+   tokens.md (S3 worktree copy).
 
-4. **Device-side confirmation** (S3/S4, quick): did the `la-start` push put a
-   Live Activity on the lock screen? Did the `alert` banner appear? A `200`
-   only means APNs accepted it.
+4. ~~Device-side confirmation~~ **Partly done** — `alert` banner showed;
+   `la-start` did not start a Live Activity (root-caused: payload key mismatch,
+   now fixed). Local start works, per the user. Still useful from S4: does the
+   *corrected* `la-start` payload start one, and does `updatedAt` (ISO-8601)
+   decode — see FINDINGS.md "la-start returned 200 but no Live Activity".
 
 ## Blocked-command log (background-session permission prompts)
 
@@ -73,3 +75,10 @@ timestamps for S4 to subtract.
   sent traffic (3× 200 at 16:40, 3× 400 at 10:09) in FINDINGS.md for S4 to
   subtract, plus a sequencing lesson (push-to-start was sent before S3's
   local-start pass/fail was confirmed) and the canonical tokens.md path gap.
+- User: `alert` banner arrived; `la-start` started no Live Activity; local
+  start works; per-activity token added. Read S3's Swift structs and found the
+  `la-start` payload used invented snake_case keys (`route_id`, `display_status`,
+  `updated_at`) instead of S3's `routeName` / `displayStatus` / `updatedAt` etc.
+  → iOS decoded nothing. Fixed the LA payloads + `example_payload()`; added
+  `refresh_updated_at` (ISO-8601) alongside `inject_timestamp`; regression test.
+  Date-encoding strategy for `updatedAt` still unverified — flagged for S4.

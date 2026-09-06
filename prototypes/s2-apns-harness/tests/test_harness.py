@@ -132,6 +132,29 @@ def test_example_payloads_validate(key):
     payloads.validate(payload, pt)  # must not raise
 
 
+def test_la_example_payloads_match_s3_struct_keys():
+    # Regression guard: the push `attributes` / `content-state` keys must be
+    # S3's exact Swift property names, not invented snake_case. A mismatch =
+    # APNs 200 + iOS silently starts/updates nothing.
+    start = payloads.example_payload("la-start")["aps"]
+    assert start["attributes-type"] == payloads.S3_ATTRIBUTES_TYPE
+    assert set(start["attributes"]) == set(payloads.S3_ATTRIBUTES_KEYS)
+    for key in ("la-update", "la-end", "la-start"):
+        cs = payloads.example_payload(key)["aps"]["content-state"]
+        assert set(cs).issubset(set(payloads.S3_CONTENT_STATE_KEYS)), (key, set(cs))
+        assert "displayStatus" in cs and "display_status" not in cs
+        assert "updatedAt" in cs and "updated_at" not in cs
+
+
+def test_refresh_updated_at_only_when_string():
+    p = {"aps": {"event": "update", "content-state": {"updatedAt": "2020-01-01T00:00:00Z"}}}
+    assert payloads.refresh_updated_at(p, now=0) is True
+    assert p["aps"]["content-state"]["updatedAt"] == "1970-01-01T00:00:00Z"
+    p2 = {"aps": {"event": "update", "content-state": {"updatedAt": 12345}}}
+    assert payloads.refresh_updated_at(p2) is False
+    assert p2["aps"]["content-state"]["updatedAt"] == 12345
+
+
 def test_liveactivity_requires_event():
     with pytest.raises(payloads.PayloadError):
         payloads.validate({"aps": {"content-state": {}}}, PUSH_TYPES["la-update"])

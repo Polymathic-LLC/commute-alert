@@ -3,9 +3,10 @@
     "event": "update",
     "content-state": {
       "v": 1,
-      "display_status": "delayed",
+      "displayStatus": "delayed",
       "headline": "Next inbound train +6 min",
-      "updated_at": 1700000000
+      "minutesToDeparture": 6,
+      "updatedAt": "2026-01-01T00:00:00Z"
     }
   }
 }

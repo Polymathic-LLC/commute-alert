@@ -3,20 +3,19 @@
     "event": "start",
     "attributes-type": "CommuteActivityAttributes",
     "attributes": {
-      "route_id": "CR-Worcester",
-      "stop_id": "place-WML-0091",
-      "direction_id": 1,
-      "window_label": "AM commute"
+      "routeName": "CR-Worcester",
+      "stopName": "Boston Landing"
     },
     "content-state": {
       "v": 1,
-      "display_status": "delayed",
-      "headline": "Next inbound train +6 min",
-      "updated_at": 1700000000
+      "displayStatus": "on_time",
+      "headline": "Push-to-start from the S2 harness",
+      "minutesToDeparture": 6,
+      "updatedAt": "2026-01-01T00:00:00Z"
     },
     "alert": {
       "title": "Commute monitoring started",
-      "body": "Watching the 7:10 inbound."
+      "body": "Watching the inbound train."
     }
   }
 }

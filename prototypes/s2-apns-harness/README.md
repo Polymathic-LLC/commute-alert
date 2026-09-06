@@ -89,7 +89,16 @@ failure — the harness never lets it be forgotten, and defaults the bundle id t
 the S3-probe value with a loud warning if `apns.env` is missing it.
 
 `aps.timestamp` is injected fresh on every Live Activity send unless the payload
-already sets one (Apple orders LA updates by it).
+already sets one (Apple orders LA updates by it). `content-state.updatedAt` is
+refreshed to now (ISO-8601) too, unless `--keep-updated-at`.
+
+The `la-*` example payloads' `attributes` / `content-state` keys match S3's
+`CommuteActivityAttributes` Swift struct **exactly** (`routeName`, `stopName`,
+`displayStatus`, `headline`, `minutesToDeparture`, `updatedAt`, `v`). ActivityKit's
+push decoder does not convert snake_case and rejects missing non-optional keys —
+a mismatch means APNs returns 200 and iOS silently starts/updates nothing. The
+`updatedAt` date-encoding strategy (ISO-8601 vs Unix epoch) is not yet confirmed
+for this struct — see `FINDINGS.md`.
 
 ## Tests
 

@@ -35,10 +35,54 @@ Full detail (payloads, headers, `apns-unique-id`) in `logs/send-history.jsonl`.
 **Sequencing lesson (not repeated):** S2 sent the `la-start` push-to-start
 *before* S3 confirmed that a Live Activity can be started **locally** on the
 device. The plan wanted local-start first precisely so an ActivityKit failure
-is distinguishable from an APNs failure. Push-to-start returning `200` is
-strictly more informative than a local start, but if the device shows nothing
-we cannot now tell which layer broke. For any future first contact with a new
+is distinguishable from an APNs failure. For any future first contact with a new
 device: local start, confirm it renders, *then* push.
+
+---
+
+## Q: `la-start` returned 200 but no Live Activity appeared. Why?
+
+**Answer: the push payload's `attributes` / `content-state` keys did not match
+S3's Swift structs, so iOS accepted the push and silently decoded nothing.**
+Fixed in this session.
+
+Disambiguation (2026-09-06 evening): the user confirmed a **local** start puts a
+Live Activity on the lock screen, and the `alert` push produced a visible
+banner. So ActivityKit works on the device and APNs delivery works. The failure
+was specific to the push-to-start *payload*.
+
+Root cause — the first `la-start` (16:40) sent invented placeholder keys:
+
+| Sent | S3's actual struct (`Sources/Shared/CommuteActivityAttributes.swift`) |
+|---|---|
+| `attributes: {route_id, stop_id, direction_id, window_label}` | `CommuteActivityAttributes { routeName: String; stopName: String }` |
+| `content-state: {display_status, updated_at}` | `ContentState { v: Int; displayStatus: String; headline: String; minutesToDeparture: Int?; updatedAt: Date }` |
+
+ActivityKit's push JSONDecoder does **not** apply `.convertFromSnakeCase` and
+does not tolerate missing non-optional keys, so `displayStatus` / `updatedAt` /
+`routeName` were absent → decode failed → `Activity` never created. APNs had
+already returned `200` because the payload is well-formed *JSON*; APNs never
+looks at whether it matches your `ContentState`.
+
+Fix applied: `payloads/live-activity-*.json` and `example_payload()` now use
+S3's exact keys (`routeName`, `stopName`, `displayStatus`, `minutesToDeparture`,
+`updatedAt`). A unit test (`test_la_example_payloads_match_s3_struct_keys`)
+guards against regressing to snake_case.
+
+**Unverified:** the corrected payload has NOT been sent (live-send hold). S4
+should send it first and confirm the Live Activity actually starts.
+
+**`updatedAt` date encoding is still open.** It is a Swift `Date`. The corrected
+payload sends an ISO-8601 string (`"2026-09-06T20:48:49Z"`), per Apple DTS
+guidance that ActivityKit's push decoder uses `.iso8601`. This is unconfirmed
+for this struct. If S4 sees the activity start but `updatedAt`-dependent UI not
+update, try: Unix epoch seconds as a number, then `.deferredToDate` (seconds
+since 2001). The harness auto-refreshes `content-state.updatedAt` to now on
+every LA send (`--keep-updated-at` to disable); `aps.timestamp` (a separate
+envelope field, always Unix seconds) is injected too.
+
+**Confidence: high** on the root cause (key mismatch is unambiguous from the
+structs). **Medium** that the ISO-8601 date form is right — flagged for S4.
 
 ---
 
@@ -64,9 +108,9 @@ Sends against `https://api.sandbox.push.apple.com` with S3's real tokens:
 |---|---|---|
 | `alert` | APNs device token (64-hex) | **`200 OK`** |
 | `background` | APNs device token (64-hex) | **`200 OK`** |
-| `la-start` (push-to-start) | push-to-start token (160-hex) | **`200 OK`** |
-| `la-update` | per-activity token | not yet — token still a placeholder in S3's file |
-| `la-end` | per-activity token | not yet — same |
+| `la-start` (push-to-start) | push-to-start token (160-hex) | **`200 OK`** (but decoded nothing on-device — see below) |
+| `la-update` | per-activity token (160-hex, now captured) | not sent — live-send hold |
+| `la-end` | per-activity token | not sent — live-send hold |
 
 Earlier auth-progression evidence (documents the failure ladder):
 
@@ -230,14 +274,16 @@ budget is measured against an untouched-by-us bucket. Remaining `la-update` /
 
 1. ~~A `200 OK` on a valid provider token.~~ **Done** — alert, background,
    la-start (2026-09-06 16:40 EDT).
-2. **`la-update` and `la-end`** — two blockers: (a) the per-activity push token
-   is still a placeholder in S3's `tokens.md`; (b) even with it, the actual
-   send waits on the hold being lifted. Payload shape + headers for both are
-   already verified by `--dry-run` and unit tests.
-3. **Device-side confirmation.** A `200` means APNs accepted the push, not that
-   anything showed. Whether the `la-start` put a Live Activity on the lock
-   screen, and whether the `alert` banner appeared — S3/S4 observations.
-4. The rest of the failure-mode table (wrong-environment token, wrong topic,
+2. ~~Capture all three device tokens.~~ **Done** — push-to-start, per-activity,
+   and APNs device token all in S3's `tokens.md`.
+3. **Send the *corrected* `la-start`** and confirm it actually starts a Live
+   Activity (the first one didn't — key mismatch, now fixed). Then `la-update` /
+   `la-end`. All gated on the live-send hold; S4's call.
+4. **`updatedAt` date encoding** — corrected payload uses ISO-8601; unconfirmed
+   for this struct. S4 to verify; fallbacks noted above.
+5. **Device-side confirmation done so far:** `alert` banner appeared; local
+   Live Activity start works; push-to-start with the *old* payload started
+   nothing.
+6. The rest of the failure-mode table (wrong-environment token, wrong topic,
    expired LA token, `Unregistered`, `BadCollapseId`) — reachable now that auth
-   works, but each needs a real token deliberately broken in that one way, and
-   each is a live send, so also gated on the hold.
+   works, but each is a live send, so also gated on the hold.

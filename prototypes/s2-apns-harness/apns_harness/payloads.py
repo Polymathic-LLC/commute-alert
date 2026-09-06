@@ -117,6 +117,16 @@ def validate(payload: dict, push_type: PushType) -> list[str]:
     return warnings
 
 
+# S3's throwaway `CommuteActivityAttributes` (Sources/Shared/CommuteActivityAttributes.swift).
+# The push `attributes` / `content-state` JSON keys must match these Swift
+# property names EXACTLY — ActivityKit's push decoder does not convert
+# snake_case. Getting this wrong = APNs returns 200 and iOS silently starts /
+# updates nothing.
+S3_ATTRIBUTES_TYPE = "CommuteActivityAttributes"
+S3_ATTRIBUTES_KEYS = ("routeName", "stopName")
+S3_CONTENT_STATE_KEYS = ("v", "displayStatus", "headline", "minutesToDeparture", "updatedAt")
+
+
 def inject_timestamp(payload: dict, *, now: int | None = None) -> bool:
     """Set `aps.timestamp` to now if absent. Returns True if it changed.
 
@@ -131,17 +141,38 @@ def inject_timestamp(payload: dict, *, now: int | None = None) -> bool:
     return True
 
 
-def example_payload(push_type_key: str, *, bundle_id: str = "<bundle-id>") -> dict:
-    """Illustrative payloads. Field set for content-state is deliberately a
-    placeholder — display-contract.md leaves it Open pending S6.
+def refresh_updated_at(payload: dict, *, now: float | None = None) -> bool:
+    """If `aps.content-state.updatedAt` is a string, replace it with a fresh
+    ISO-8601 UTC timestamp. Returns True if it changed.
 
-    Live Activity examples omit `aps.timestamp` on purpose; the sender injects a
-    fresh one at send time (see `inject_timestamp`)."""
+    `updatedAt` is a Swift `Date`. ActivityKit's push JSONDecoder accepts ISO-8601
+    strings for `Date` (per Apple DTS guidance); the committed example carries a
+    fixed one so the caption on-device isn't years stale. NOTE: the exact
+    date-decoding strategy is unverified for this struct — see FINDINGS.md.
+    """
+    cs = payload.get("aps", {}).get("content-state")
+    if not isinstance(cs, dict) or not isinstance(cs.get("updatedAt"), str):
+        return False
+    t = time.gmtime(now) if now is not None else time.gmtime()
+    cs["updatedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", t)
+    return True
+
+
+def example_payload(push_type_key: str, *, bundle_id: str = "<bundle-id>") -> dict:
+    """Illustrative payloads matching S3's throwaway `CommuteActivityAttributes`.
+
+    The content-state field SET is still a placeholder — display-contract.md
+    leaves the production shape Open pending S4 + S6 — but the field NAMES here
+    are S3's real ones so push-to-start / update actually decode on-device.
+
+    Live Activity examples omit `aps.timestamp`; the sender injects a fresh one
+    (`inject_timestamp`) and refreshes `updatedAt` (`refresh_updated_at`)."""
     cs = {
         "v": 1,
-        "display_status": "delayed",
+        "displayStatus": "delayed",
         "headline": "Next inbound train +6 min",
-        "updated_at": 1_700_000_000,
+        "minutesToDeparture": 6,
+        "updatedAt": "2026-01-01T00:00:00Z",
     }
     if push_type_key == "la-update":
         return {"aps": {"event": "update", "content-state": cs}}
@@ -149,17 +180,16 @@ def example_payload(push_type_key: str, *, bundle_id: str = "<bundle-id>") -> di
         return {
             "aps": {
                 "event": "start",
-                "attributes-type": "CommuteActivityAttributes",
+                "attributes-type": S3_ATTRIBUTES_TYPE,
                 "attributes": {
-                    "route_id": "CR-Worcester",
-                    "stop_id": "place-WML-0091",
-                    "direction_id": 1,
-                    "window_label": "AM commute",
+                    "routeName": "CR-Worcester",
+                    "stopName": "Boston Landing",
                 },
-                "content-state": cs,
+                "content-state": {**cs, "displayStatus": "on_time",
+                                  "headline": "Push-to-start from the S2 harness"},
                 "alert": {
                     "title": "Commute monitoring started",
-                    "body": "Watching the 7:10 inbound.",
+                    "body": "Watching the inbound train.",
                 },
             }
         }
@@ -169,7 +199,7 @@ def example_payload(push_type_key: str, *, bundle_id: str = "<bundle-id>") -> di
         return {
             "aps": {
                 "event": "end",
-                "content-state": {**cs, "display_status": "on_time", "headline": "Commute ended"},
+                "content-state": {**cs, "displayStatus": "on_time", "headline": "Commute ended"},
             }
         }
     if push_type_key == "alert":
