@@ -21,7 +21,13 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: "YES"
-    GENERATE_INFOPLIST_FILE: "NO"
+    # YES + an explicit INFOPLIST_FILE => Xcode merges the synthesized bundle keys
+    # (CFBundleIdentifier / CFBundleExecutable / CFBundlePackageType / CFBundleName)
+    # ON TOP of our file. With NO, those keys are simply absent from the built
+    # .app/Info.plist and the device refuses to install it (CoreDeviceError 3000).
+    # Our file still contributes NSSupportsLiveActivities, UIBackgroundModes, and
+    # the widget's NSExtension dict. See FINDINGS.md F11.
+    GENERATE_INFOPLIST_FILE: "YES"
 
 targets:
   S3Probe:

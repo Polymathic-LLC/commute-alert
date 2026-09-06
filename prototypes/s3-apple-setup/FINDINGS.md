@@ -18,12 +18,17 @@ with a physical device.
   - `xcodebuild -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build` → **BUILD SUCCEEDED** (compiles for the device slice; signing deferred to the human).
   - Widget extension is embedded at `S3Probe.app/PlugIns/S3ProbeWidget.appex`; `ValidateEmbeddedBinary` passed.
   - No warnings, no errors.
+  - **Installability gate (added after F11):** `plutil -p` on the built
+    `S3Probe.app/Info.plist` and the embedded `.appex/Info.plist` shows resolved
+    `CFBundleIdentifier` / `CFBundleExecutable` / `CFBundlePackageType`.
 - **Answer.** Yes. The agent can own the whole source + project side. XcodeGen is
   the mechanism that lets a project exist without the UI; the generated
   `S3Probe.xcodeproj` is committed so a human without XcodeGen just opens it.
-- **Confidence.** High for "compiles and links". The parts that only a device can
-  prove (signing succeeds, Live Activity actually renders, tokens actually issue)
-  are F4 and are still open.
+- **Confidence.** High for "compiles, links, and produces an installable bundle".
+  The parts that only a device can prove (signing succeeds, Live Activity actually
+  renders, tokens actually issue) are F4 and are still open. **See F11** — an
+  earlier version of this finding treated BUILD SUCCEEDED as sufficient and it was
+  not.
 
 ## F2. The `ios/CLAUDE.md` "must be created via Xcode UI" constraint is about the *production* project, and is worked around here, not violated
 
@@ -108,6 +113,45 @@ Fixed, not placeholders:
   pruned. Tokens still get pasted into the **main-checkout** path
   (`/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md`)
   so S2/S4 read them independent of the worktree.
+
+## F11. `xcodebuild` success is not an installability check — and `GENERATE_INFOPLIST_FILE=NO` silently drops required bundle keys
+
+- **What happened.** The project was first written with `GENERATE_INFOPLIST_FILE:
+  "NO"` plus a hand-written `Info.plist` for each target. Those files listed
+  `CFBundleDisplayName`, versions, `NSSupportsLiveActivities`, etc. but **not**
+  `CFBundleIdentifier`, `CFBundleExecutable`, `CFBundlePackageType`, or
+  `CFBundleName`. With `GENERATE_INFOPLIST_FILE=NO` nothing synthesizes those, so
+  the built `S3Probe.app/Info.plist` (and the widget `.appex`) shipped with **no
+  `CFBundleIdentifier`**. `xcodebuild ... build` returned **BUILD SUCCEEDED** for
+  both the simulator and unsigned-device slices anyway. The failure only appeared
+  when the human tried to install on a real device: **CoreDeviceError 3000**.
+- **Why the earlier verification missed it.** "BUILD SUCCEEDED" was reported as
+  evidence the product was ready. A build succeeding proves the sources compile
+  and link; it says nothing about whether the resulting bundle is *installable*.
+  Those are different checks and only the first was run.
+- **Fix.** `GENERATE_INFOPLIST_FILE: "YES"` while keeping the explicit
+  `INFOPLIST_FILE` for each target. Xcode then merges the synthesized bundle keys
+  on top of the hand-written file; our file still contributes
+  `NSSupportsLiveActivities`, `UIBackgroundModes`, and the widget's `NSExtension`
+  dict. Verified in the built product:
+  - `S3Probe.app/Info.plist`: `CFBundleIdentifier = com.polymathic.commutealert.s3probe`, `CFBundleExecutable = S3Probe`, `CFBundlePackageType = APPL`, `CFBundleName = S3Probe` — all resolved, no literal `$(…)`.
+  - `S3ProbeWidget.appex/Info.plist`: `CFBundleIdentifier = …s3probe.widget`, `CFBundlePackageType = XPC!`, `NSExtensionPointIdentifier = com.apple.widgetkit-extension` preserved.
+- **The installability gate now in the loop** (run on the built `.app` and the
+  embedded `.appex` before telling anyone a build is ready):
+
+  ```
+  plutil -p <built .app>/Info.plist | grep -E "CFBundleIdentifier|CFBundleExecutable|CFBundlePackageType"
+  plutil -p <built .app>/PlugIns/<ext>.appex/Info.plist | grep -E "CFBundleIdentifier|CFBundleExecutable|CFBundlePackageType"
+  ```
+
+  Values must be the resolved strings, not `$(PRODUCT_BUNDLE_IDENTIFIER)`.
+- **Relevance to layer 2.** `ios/CLAUDE.md` says the production project is created
+  through the Xcode UI, which always turns on `GENERATE_INFOPLIST_FILE` and would
+  not have hit this. A *generated* project (XcodeGen / a hand-written pbxproj /
+  SPM) can, and any CI that builds the real target must include the installability
+  gate above, not just a compile.
+- **Confidence.** High — root cause reproduced (missing key in the built plist)
+  and the fix verified against the built product.
 
 ## F10. Toolchain specifics worth carrying forward (Xcode 26.2 / iOS 26 SDK)
 
