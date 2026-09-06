@@ -1,0 +1,9 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Worcester Line delay",
+      "body": "Inbound trains delayed ~15 min near Newton."
+    },
+    "sound": "default"
+  }
+}

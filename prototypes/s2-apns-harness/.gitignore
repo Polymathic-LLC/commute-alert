@@ -1,0 +1,8 @@
+# S2 prototype — code and findings are committed; credentials, venv, and captured
+# send history are not.
+.venv/
+.secrets/
+logs/
+*.p8
+__pycache__/
+*.pyc

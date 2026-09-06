@@ -1,0 +1,22 @@
+{
+  "aps": {
+    "event": "start",
+    "attributes-type": "CommuteActivityAttributes",
+    "attributes": {
+      "route_id": "CR-Worcester",
+      "stop_id": "place-WML-0091",
+      "direction_id": 1,
+      "window_label": "AM commute"
+    },
+    "content-state": {
+      "v": 1,
+      "display_status": "delayed",
+      "headline": "Next inbound train +6 min",
+      "updated_at": 1700000000
+    },
+    "alert": {
+      "title": "Commute monitoring started",
+      "body": "Watching the 7:10 inbound."
+    }
+  }
+}

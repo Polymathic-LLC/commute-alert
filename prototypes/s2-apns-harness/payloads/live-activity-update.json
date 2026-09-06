@@ -1,0 +1,11 @@
+{
+  "aps": {
+    "event": "update",
+    "content-state": {
+      "v": 1,
+      "display_status": "delayed",
+      "headline": "Next inbound train +6 min",
+      "updated_at": 1700000000
+    }
+  }
+}

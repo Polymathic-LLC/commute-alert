@@ -1,0 +1,4 @@
+# APNs push harness (S2). Pin loosely — this is a throwaway prototype.
+httpx[http2]>=0.27,<1.0
+pyjwt>=2.8,<3.0
+cryptography>=42.0
