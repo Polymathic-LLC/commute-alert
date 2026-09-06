@@ -1,0 +1,10 @@
+# Captured runtime data — never commit (DERISKING rule).
+tokens.md
+
+# Xcode / build detritus
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcuserdatad/
+.DS_Store
