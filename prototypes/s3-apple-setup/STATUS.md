@@ -48,12 +48,12 @@ Left at the WORKTREE path `…/.claude/worktrees/s3-apple-setup/prototypes/s3-ap
 **RUNBOOK.md report-back (for the record):**
 - Automatic signing: succeeded, no manual portal steps reported.
 - Live Activity on the lock screen from a local (no-push) start: yes, confirmed.
-- Were all three tokens captured?
-- iPhone model + iOS version; Apple Watch paired y/n.
+- All three tokens captured: yes (push-to-start, per-activity, APNs device).
+- Device: iPhone 15 Pro, iOS 26.5. Apple Watch paired: still unknown (S4 asking).
 
 **Handoff for S2/S4:** tokens are in `tokens.md` at the WORKTREE path (`…/.claude/worktrees/s3-apple-setup/prototypes/s3-apple-setup/tokens.md`). S2's reader is bound to that path — it stays there. Live Activity APNs topic is `com.polymathic.commutealert.s3probe.push-type.liveactivity`. (The earlier plan to keep it in the main checkout is superseded; see "tokens.md location" above.)
 
-**Open logistics (orchestrator):** the Xcode project + sources + RUNBOOK.md + FINDINGS.md are only on branch `worktree-s3-apple-setup` (pushed to origin), not in the main checkout. Before the human can work RUNBOOK.md, that branch content needs to reach a normal working tree — either `git worktree add ../commute-alert-s3 worktree-s3-apple-setup`, or the orchestrator merges/cherry-picks it. Noted in `WHERE-IS-THE-PROJECT.md` in the main checkout.
+**Logistics (resolved):** the human worked RUNBOOK.md directly from this worktree in place — no second worktree, no merge to main. Project + sources + docs live on branch `worktree-s3-apple-setup` (pushed, through commit 6266372). S4 is now editing the same worktree to instrument the probe.
 
 **Note for the orchestrator (not S3's to fix):** `ios/CommuteAlert.xcodeproj` is still staged-but-broken — it references source folders deleted in `cd07ced`. S3 sidesteps `ios/` entirely. Recommend `git rm -r --cached ios/CommuteAlert.xcodeproj` and recreating the real project via Xcode per `ios/CLAUDE.md` when layer-2 work starts. Detail in FINDINGS.md §F3.
 
