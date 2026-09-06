@@ -11,6 +11,37 @@ Answers as they are established. Confidence is stated per finding.
 
 ---
 
+## Push traffic S2 has sent to S3's device — subtract this from any budget baseline
+
+Per the orchestrator: the Live Activity update budget is S4's central unknown,
+and every push to the device draws from a bucket S4 has not characterized. S2
+has stopped sending and will not send again to that device without S4/orchestrator
+coordination. Everything S2 sent, so S4 can account for it:
+
+| When (America/New_York) | Type | Token | Env | Result | apns-id |
+|---|---|---|---|---|---|
+| 2026-09-06 10:09:30 | alert | dummy (not the device) | sandbox | 400 BadDeviceToken | 0e8ff70f-… |
+| 2026-09-06 10:09:40 | la-start | dummy | sandbox | 400 BadDeviceToken | 6b3a0474-… |
+| 2026-09-06 10:09:40 | background | dummy | sandbox | 400 BadDeviceToken | e90491d8-… |
+| **2026-09-06 16:40:04** | **alert** | **real device token** | sandbox | **200 OK** | aba39102-… |
+| **2026-09-06 16:40:14** | **background** | **real device token** | sandbox | **200 OK** | 929c1341-… |
+| **2026-09-06 16:40:14** | **la-start** | **real push-to-start token** | sandbox | **200 OK** | df783428-… |
+
+The three 10:09 rows never reached the device (dummy tokens, rejected pre-delivery)
+— they cost nothing on the device. The three 16:40 rows were accepted for
+delivery to the real device. No `la-update` / `la-end` has ever been sent.
+Full detail (payloads, headers, `apns-unique-id`) in `logs/send-history.jsonl`.
+
+**Sequencing lesson (not repeated):** S2 sent the `la-start` push-to-start
+*before* S3 confirmed that a Live Activity can be started **locally** on the
+device. The plan wanted local-start first precisely so an ActivityKit failure
+is distinguishable from an APNs failure. Push-to-start returning `200` is
+strictly more informative than a local start, but if the device shows nothing
+we cannot now tell which layer broke. For any future first contact with a new
+device: local start, confirm it renders, *then* push.
+
+---
+
 ## Q: Does the tool build against placeholders before credentials arrive?
 
 **Answer: Yes.** The full harness — JWT signing, HTTP/2 client, all five push
@@ -168,20 +199,45 @@ all three, to the correct roles. Specific hazards checked:
   ("not filled in yet"), never a silent empty result.
 
 **Confidence: high.** Verified this session against
-`tokens-dummy.md` supplied by the orchestrator; 6 dedicated unit tests.
+`tokens-dummy.md` supplied by the orchestrator; 6 dedicated unit tests. Also
+verified against S3's actual filled file (push-to-start + device tokens
+extracted, per-activity correctly flagged as an unfilled placeholder).
+
+### Canonical-path gap — for whoever merges S3
+
+S3's runbook and template both say the tokens go to
+`/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md`
+(main checkout). **That file was never created there.** S3 filled the copy
+inside its own worktree
+(`.claude/worktrees/s3-apple-setup/prototypes/s3-apple-setup/tokens.md`).
+
+S2 works around this: the reader now globs
+`.claude/worktrees/*/prototypes/s3-apple-setup/tokens.md` (newest mtime first)
+in addition to the main-checkout path and `$S3_TOKENS_FILE`. That is a
+workaround, not a fix — when S3 is merged, the real file needs to land at the
+canonical main-checkout path (it is git-ignored, so the merge alone will not
+put it there; someone must copy it), or S4 must be told to use the worktree
+path / env var explicitly.
 
 ---
 
 ## Still open
 
+**S2 is on a live-send hold** (orchestrator): no more pushes of any type to
+S3's device without S4/orchestrator coordination, so S4's Live Activity update
+budget is measured against an untouched-by-us bucket. Remaining `la-update` /
+`la-end` work is dry-run + payload validation only until then.
+
 1. ~~A `200 OK` on a valid provider token.~~ **Done** — alert, background,
-   la-start.
-2. **`la-update` and `la-end`** — need the per-activity push token, which is
-   still a `<paste …>` placeholder in S3's `tokens.md` (it only exists while a
-   Live Activity is running; S3 must tap "① Start locally" and copy it).
+   la-start (2026-09-06 16:40 EDT).
+2. **`la-update` and `la-end`** — two blockers: (a) the per-activity push token
+   is still a placeholder in S3's `tokens.md`; (b) even with it, the actual
+   send waits on the hold being lifted. Payload shape + headers for both are
+   already verified by `--dry-run` and unit tests.
 3. **Device-side confirmation.** A `200` means APNs accepted the push, not that
-   anything showed. Whether the `la-start` actually put a Live Activity on the
-   lock screen, and whether the `alert` banner appeared, are S3/S4 observations.
+   anything showed. Whether the `la-start` put a Live Activity on the lock
+   screen, and whether the `alert` banner appeared — S3/S4 observations.
 4. The rest of the failure-mode table (wrong-environment token, wrong topic,
    expired LA token, `Unregistered`, `BadCollapseId`) — reachable now that auth
-   works, but each needs a real token deliberately broken in that one way.
+   works, but each needs a real token deliberately broken in that one way, and
+   each is a live send, so also gated on the hold.
