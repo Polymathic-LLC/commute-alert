@@ -252,6 +252,60 @@ def test_tokens_parse_formats(text):
     assert found["device"].startswith("ffeedd")
 
 
+# S3's actual template shape: fenced block, token on the line AFTER the label.
+S3_REAL_BLOCK = """\
+## Tokens
+
+```
+LIVE ACTIVITY push-to-start token:
+80a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f
+
+LIVE ACTIVITY per-activity push token:
+11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff
+
+APNs device token (alert / background):
+ffeeddccbbaa00998877665544332211ffeeddccbbaa00998877665544332211
+```
+
+Captured at: <date/time>
+"""
+
+
+def test_tokens_parse_s3_real_format():
+    found = tokens.parse(S3_REAL_BLOCK)
+    assert found["pts"] == "80a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f"
+    assert found["activity"] == "11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff"
+    assert found["device"] == "ffeeddccbbaa00998877665544332211ffeeddccbbaa00998877665544332211"
+
+
+def test_pts_label_not_claimed_by_activity_alias():
+    # "LIVE ACTIVITY push-to-start token" contains the substring "activity".
+    one = "LIVE ACTIVITY push-to-start token:\naa" + "b" * 40 + "\n"
+    found = tokens.parse(one)
+    assert set(found) == {"pts"}
+
+
+def test_tokens_unfilled_placeholder_fails_loudly(tmp_path):
+    f = tmp_path / "tokens.md"
+    f.write_text(
+        "```\n"
+        "LIVE ACTIVITY push-to-start token:\n"
+        "<paste — long lowercase hex, no spaces>\n\n"
+        "APNs device token (alert / background):\n"
+        "<paste — device token hex>\n"
+        "```\n"
+    )
+    assert tokens.parse(f.read_text()) == {}
+    with pytest.raises(tokens.TokenFileError) as exc:
+        tokens.resolve("pts", path=f)
+    assert "not filled in yet" in str(exc.value)
+
+
+def test_tokens_blank_and_fence_between_label_and_token():
+    txt = "APNs device token (alert / background):\n\n```\ndead" + "beef" * 12 + "\n```\n"
+    assert tokens.parse(txt)["device"].startswith("dead")
+
+
 def test_tokens_resolve_missing_file(tmp_path):
     with pytest.raises(tokens.TokenFileError):
         tokens.resolve("pts", path=tmp_path / "nope.md")

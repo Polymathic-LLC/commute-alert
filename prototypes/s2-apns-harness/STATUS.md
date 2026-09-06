@@ -1,10 +1,11 @@
 STATUS: BLOCKED
 
-Last updated: 2026-09-06 (session start day)
-Summary: Harness is built, tested, and verified against the APNs sandbox with a
-throwaway key. Every code path that does not require a real credential is done.
-Blocked only on the real `.p8` + a device token to send a successful push and
-document the token/topic failure modes.
+Last updated: 2026-09-06 (day 0, after orchestrator review)
+Summary: Harness is built, tested (33 unit tests), verified against the APNs
+sandbox with a throwaway key, and its S3 token-file reader is verified against
+S3's real template format. Every code path that does not require a real
+credential is done. Blocked only on the real `.p8` + a device token to send a
+successful push and document the token/topic failure modes.
 
 ## Needs from human
 
@@ -57,3 +58,10 @@ of them. Hence BLOCKED rather than RUNNING.
   `403 InvalidProviderToken`, and `MissingProviderToken` with no auth header),
   and HTTP/1.1 is rejected at the protocol level. See FINDINGS.md.
 - Deleted the throwaway key and probe log (never committed).
+- Orchestrator review: rebuilt the S3 token reader to S3's actual format (label
+  then token on the NEXT line, inside a fenced block) instead of the assumed
+  bullet / key:value layout. Verified against the orchestrator's dummy-filled
+  template: all three tokens extract to the right roles; the "activity"
+  substring in the push-to-start label does not collide; an unfilled
+  `<paste …>` placeholder raises a loud error. +4 unit tests (33 total).
+- Added an APNs validation-order callout to the top of FINDINGS.md for S4.

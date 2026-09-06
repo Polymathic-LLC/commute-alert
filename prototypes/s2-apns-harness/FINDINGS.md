@@ -2,6 +2,13 @@
 
 Answers as they are established. Confidence is stated per finding.
 
+> **For S4 — APNs validation order (verified this session):** APNs checks the
+> provider **JWT first**, before it looks at the device token, `apns-topic`, or
+> `apns-collapse-id`. So when a push fails, rule out `InvalidProviderToken` /
+> `ExpiredProviderToken` / `MissingProviderToken` before spending any time on
+> topic or token problems — you will not see `BadDeviceToken` or
+> `DeviceTokenNotForTopic` at all until the JWT is accepted.
+
 ---
 
 ## Q: Does the tool build against placeholders before credentials arrive?
@@ -9,7 +16,7 @@ Answers as they are established. Confidence is stated per finding.
 **Answer: Yes.** The full harness — JWT signing, HTTP/2 client, all five push
 shapes, payload validation, send history, CLI — is complete and exercised
 without a real `.p8`. `--dry-run` prints the exact request (URL, headers, body,
-equivalent curl) with no credentials or network. 29 unit tests pass.
+equivalent curl) with no credentials or network. 33 unit tests pass.
 
 **Confidence: high.** Verified in this session.
 
@@ -104,6 +111,40 @@ cause silently-dropped updates. `--dismissal-in` / `--dismissal-date` add
 
 **Confidence: high** (implementation); the drop-on-stale-timestamp behavior
 itself is S4's to measure.
+
+---
+
+## Q: Can the harness read S3's token handoff file?
+
+**Answer: Yes, verified against S3's real template format.**
+
+S3 does not use bullets or `key: value` — it writes a `## Tokens` section with a
+fenced code block, each token on the line **after** its label:
+
+```
+LIVE ACTIVITY push-to-start token:
+<hex>
+
+LIVE ACTIVITY per-activity push token:
+<hex>
+
+APNs device token (alert / background):
+<hex>
+```
+
+The reader was tested against S3's filled-with-dummy-hex template and extracts
+all three, to the correct roles. Specific hazards checked:
+
+- Token on the following line, not the label line — handled.
+- Blank lines and ` ``` ` fence lines between label and token — skipped.
+- The push-to-start label contains the substring "activity" — does **not**
+  collide with the per-activity role, because each label line is matched to
+  exactly one role, S3-exact labels first, most-specific first.
+- An unfilled `<paste …>` placeholder produces a **loud** `TokenFileError`
+  ("not filled in yet"), never a silent empty result.
+
+**Confidence: high.** Verified this session against
+`tokens-dummy.md` supplied by the orchestrator; 6 dedicated unit tests.
 
 ---
 

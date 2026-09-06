@@ -65,8 +65,14 @@ cp apns.env.example .secrets/apns.env      # then fill in APNS_KEY_ID
    `alert`/`background`→device) → read from S3's `tokens.md`
 
 S3's `tokens.md` is auto-discovered at `prototypes/s3-apple-setup/tokens.md`
-(also checked one level up when S2 runs in a git worktree). Override with
-`--tokens-file` or `$S3_TOKENS_FILE`.
+in the main checkout (S2 may run in a worktree). Override with `--tokens-file`
+or `$S3_TOKENS_FILE`.
+
+The reader matches S3's real format — a `## Tokens` fenced block with each token
+on the line *after* its label (`LIVE ACTIVITY push-to-start token:` etc.) —
+and also tolerates `key: value`, bullet, and table-row layouts. An unfilled
+`<paste …>` placeholder is reported as "not filled in yet", never silently
+skipped.
 
 ### Key headers (handled automatically)
 
