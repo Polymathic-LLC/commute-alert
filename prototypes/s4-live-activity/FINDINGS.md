@@ -53,7 +53,12 @@ are reaching the device?
 |---|---|---|
 | 16:40:14 `la-start` | payload keys the device cannot decode | `200` |
 | 16:57:09 `la-start` | struct-matching keys, still started nothing (F6) | `200` |
-| 17:11:53–17:11:55 `la-start` ×3 | E1b arms, outcome pending | `200` ×3 |
+| 17:11:53 `la-start` | `S4-B1-iso`, ISO-8601 `Date` the decoder rejects (F6) | `200` |
+
+And in the same batch, two pushes that *did* produce cards (`S4-B2`, `S4-B3`) returned the
+identical `200`. So APNs gave the same response to three pushes of which one silently produced
+nothing and two worked. The response carries no information about the outcome in either
+direction.
 
 APNs validates that the body is JSON and that the token is well-formed for the topic. It never
 compares the body against the app's `ContentState`.
@@ -73,12 +78,16 @@ Either the device reports back (an app-side receipt), or the system is designed 
 never knowing. This lands squarely on `operations.md` restart reconciliation and on the
 `live_activities` open item in `data-model.md`.
 
-**Confidence: medium, and deliberately not higher.** The decode-failure row is established
-beyond doubt (S2 root-caused it against the Swift structs). The stale-token row is *not* yet
-evidence of anything: **nobody has looked at that phone since 16:40, so we do not know the
-activity was dead.** It may have been perfectly alive and the 200 entirely correct. E4 (F5)
-is the designed test; this finding will be upgraded or corrected from its result. Recorded at
-medium rather than high specifically so it does not harden into fact before it is tested.
+**Confidence: high for the claim as stated** — that a `200` does not distinguish a push that
+rendered from one the device silently discarded. Three pushes in one batch, one variable
+between them, two outcomes, one response code. That is now demonstrated rather than inferred.
+
+**Still untested, and deliberately kept separate:** whether APNs ever reports a *genuinely
+dead* activity with `410 Unregistered`. An earlier draft treated the 16:57:10 `la-update` as
+evidence of that; it was not, because the activity turned out to be alive. If a 410 does exist,
+a backend has at least one reliable negative signal and reconciliation is tractable. If it does
+not, the backend can never learn anything about its own pushes. E4/F5 is the designed test and
+the answer lands overnight.
 
 ---
 
