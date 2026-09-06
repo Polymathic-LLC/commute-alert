@@ -143,16 +143,19 @@ once iOS has issued it. They also print to the Xcode console (`[S3] ... token =`
 | **LIVE ACTIVITY per-activity push token** | after you tap **① Start locally** | S2 update/end, S4 |
 | **APNs device token (alert / background)** | ~1–5 s after launch | S2 alert + background push, S4 |
 
-Then:
+Then — paste into the **main checkout**, not this worktree (S2 and S4 read from
+there, and this worktree may be torn down):
 
 ```
-cd prototypes/s3-apple-setup
-cp tokens.example.md tokens.md        # tokens.md is gitignored — never commit it
+cp /Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.example.md \
+   /Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md
 ```
 
-Open `tokens.md` and paste each token on its line, plus the device info and the
-short result checklist at the bottom. S2 and S4 read this file; they will not ask
-again.
+Open `/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md`
+and paste each token on its line, plus the device info and the short result
+checklist at the bottom. `tokens.md` is captured data — never commit it (add
+`prototypes/s3-apple-setup/tokens.md` to the repo-root `.gitignore` if it isn't
+covered). S2 and S4 read this file; they will not ask again.
 
 > The **per-activity** push token is only valid while that activity is alive and
 > can rotate. For S2/S4, start a fresh activity (**① Start locally**) right before

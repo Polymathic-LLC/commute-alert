@@ -30,7 +30,9 @@ Summary: Agent-side S3 work is complete and verified — Swift sources + a gener
 - Were all three tokens captured?
 - iPhone model + iOS version; Apple Watch paired y/n.
 
-**Handoff for S2/S4:** tokens land in `prototypes/s3-apple-setup/tokens.md`. Live Activity APNs topic is `com.polymathic.commutealert.s3probe.push-type.liveactivity`.
+**Handoff for S2/S4:** tokens land in the MAIN checkout at `/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md` (NOT the worktree — that may be torn down). That directory already contains `tokens.example.md` + `WHERE-IS-THE-PROJECT.md`; the human copies the example to `tokens.md` and fills it in. Live Activity APNs topic is `com.polymathic.commutealert.s3probe.push-type.liveactivity`.
+
+**Open logistics (orchestrator):** the Xcode project + sources + RUNBOOK.md + FINDINGS.md are only on branch `worktree-s3-apple-setup` (pushed to origin), not in the main checkout. Before the human can work RUNBOOK.md, that branch content needs to reach a normal working tree — either `git worktree add ../commute-alert-s3 worktree-s3-apple-setup`, or the orchestrator merges/cherry-picks it. Noted in `WHERE-IS-THE-PROJECT.md` in the main checkout.
 
 **Note for the orchestrator (not S3's to fix):** `ios/CommuteAlert.xcodeproj` is still staged-but-broken — it references source folders deleted in `cd07ced`. S3 sidesteps `ios/` entirely. Recommend `git rm -r --cached ios/CommuteAlert.xcodeproj` and recreating the real project via Xcode per `ios/CLAUDE.md` when layer-2 work starts. Detail in FINDINGS.md §F3.
 
@@ -46,3 +48,4 @@ Summary: Agent-side S3 work is complete and verified — Swift sources + a gener
 - `xcodebuild` simulator slice → BUILD SUCCEEDED. Device slice (unsigned) → BUILD SUCCEEDED. Widget extension embeds + ValidateEmbeddedBinary passes. Zero warnings.
 - Wrote RUNBOOK.md, FINDINGS.md, tokens.example.md, README.md, .gitignore. Relayed bundle ID + prereqs to derisk-orchestrator.
 - Committed prototype. Status → BLOCKED pending human execution of RUNBOOK.md.
+- Orchestrator review: re-verified team ID `MSQSPT8P3W` + topic format `<bundle-id>.push-type.liveactivity` against the main checkout (`ios/CLAUDE.md`, `docs/push-flow.md`) — both intact, no conclusion rested on a missing file. Redirected the token drop-off to the main checkout: created `/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/{tokens.example.md,WHERE-IS-THE-PROJECT.md}`; updated RUNBOOK.md Part 7 + tokens.example.md to the absolute path.

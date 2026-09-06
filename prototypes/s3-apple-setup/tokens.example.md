@@ -1,9 +1,14 @@
 # S3 tokens — TEMPLATE
 
-Copy this file to `tokens.md` (which is gitignored) and fill it in from the
-running app / Xcode console. S2 and S4 read `tokens.md`.
+Fill this in **in the MAIN checkout**, not this worktree copy:
 
-Never commit `tokens.md`.
+    cp /Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.example.md \
+       /Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md
+
+Then paste from the running app / Xcode console. S2 and S4 read
+`/Users/bradleybares/Git/commute-alert/prototypes/s3-apple-setup/tokens.md`.
+
+Never commit `tokens.md` — it is captured data.
 
 ---
 
