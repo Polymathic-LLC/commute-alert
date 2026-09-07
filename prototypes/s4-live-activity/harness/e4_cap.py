@@ -65,6 +65,10 @@ OUT = pathlib.Path(__file__).resolve().parent.parent / "data" / "e4-heartbeats.n
 # APNs reasons that mean "this activity is gone" — the thing we are bracketing.
 DEAD_REASONS = {"Unregistered", "ExpiredToken", "BadDeviceToken", "DeviceTokenNotForTopic"}
 
+# 2001-01-01T00:00:00Z in Unix seconds. A Swift `Date` in a pushed ContentState
+# must be a JSON number, not an ISO-8601 string (F6).
+APPLE_EPOCH_OFFSET = 978_307_200
+
 # Elapsed-time schedule, in minutes since the activity started.
 #   - every 30 min normally
 #   - every 5 min across 7 h 00 m .. 9 h 30 m, where the 8 h cap is expected.
@@ -124,11 +128,32 @@ def main() -> int:
             headline = f"S4-E4 hb={n:03d} elapsed={hh}h{mm:02d}m"
 
             try:
+                # BUG FIXED AFTER THE FIRST RUN — see FINDINGS F5/F9.
+                #
+                # The original call relied on the harness's defaults, and the
+                # harness helpfully refreshes `content-state.updatedAt` to a
+                # fresh **ISO-8601 string**. F6 then established that an
+                # ISO-8601 string is exactly what ActivityKit's push decoder
+                # cannot decode into a Swift `Date` — so all 26 heartbeats of
+                # the first run were almost certainly discarded on device,
+                # behind 26 `200 OK`s.
+                #
+                # The token-lifetime result survives that (APNs token validity
+                # does not depend on whether the app could decode the body), but
+                # the content-delivery half of the run does not. Hence: build
+                # the payload here, send `updatedAt` as a NUMBER, and turn off
+                # the refresh that would rewrite it back to a string.
+                payload = example_payload("la-update")
+                payload["aps"]["content-state"]["updatedAt"] = (
+                    int(time.time()) - APPLE_EPOCH_OFFSET
+                )
+                payload["aps"]["timestamp"] = int(time.time())
                 resp = sender.send(
                     type="la-update",
                     token=token,
-                    payload=example_payload("la-update"),
+                    payload=payload,
                     headline=headline,
+                    refresh_la_fields=False,
                     extra_log={"experiment": "E4", "heartbeat": n, "elapsed_min": m},
                 )
                 row = {

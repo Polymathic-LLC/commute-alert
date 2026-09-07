@@ -171,13 +171,20 @@ designed to bracket the transition to ±5 minutes; the platform handed back an e
 
 **Answer, two parts.**
 
-**(a) The cap is 8 hours.** The activity's start time was only known to ±10 min (started by
-hand during the S3 runbook), so the direct reading is "died 8 h 00 m ± 10 min after an
-estimated start". But the death instant is known exactly, so the inference runs the other way:
-an exactly-8-hour cap back-solves a start of **16:44:01 EDT**, which sits inside the
-independently-derived window (the human captured that activity's token between ~16:39 and
-~16:55). Two unrelated lines of evidence agreeing is why this is stated as 8 hours rather than
-"about 8 hours".
+**(a) The per-activity push TOKEN dies at 8 hours.** Note the careful wording — what was
+directly measured is the token's lifetime, not the activity's. The activity's start time was
+only known to ±10 min (started by hand during the S3 runbook), so the direct reading is "died
+8 h 00 m ± 10 min after an estimated start". But the death instant is known exactly, so the
+inference runs the other way: an exactly-8-hour lifetime back-solves a start of **16:44:01
+EDT**, which sits inside the independently-derived window (the human captured that activity's
+token between ~16:39 and ~16:55). Two unrelated lines of evidence agreeing is why this is
+stated as 8 hours rather than "about 8 hours".
+
+**That the *activity* also ended at that moment is an inference, not a measurement.** Token
+invalidation and the card leaving the Lock Screen are separate events and this run cannot
+separate them — the morning observation can. Keeping them apart matters more than it looks:
+if a card can outlive its token, users see a stale card the backend has no way to reach or
+correct, and the whole delivery picture changes. This distinction is unaffected by F9.
 
 **(b) A backend CAN detect a dead Live Activity.** This is the half that was genuinely in doubt,
 and the answer is the good one. `410 ExpiredToken`, with an exact timestamp, is a reliable
@@ -194,14 +201,24 @@ observable. So a backend can know an activity is **gone**; it still cannot know 
 **Confidence: high.** 27 samples, a sharp single transition, a confirming repeat, and a
 server-reported timestamp that agrees with an independently-estimated start.
 
-### F8b — restart reconciliation, answered as a side effect
+### F8b — restart reconciliation, HALF answered (revised after F9)
 
 Every one of those 27 heartbeats was sent from a process with **no `Activity` handle and no
 memory of having started anything** — only a token read from a file. That is exactly the
-"backend restarted and lost its state" case in `operations.md`. It worked for eight hours and
-then reported the activity's death cleanly. **A backend that has lost all in-memory state can
-keep pushing to an activity it did not start, using only a stored token, and can learn when
-that token dies.** PROTOCOL.md E8 is answered without a separate experiment.
+"backend restarted and lost its state" case in `operations.md`.
+
+**What that demonstrates:** a stored token stays addressable for the activity's whole life from
+a process that knows nothing else about it, and then reports its own death cleanly. Cleanup and
+reconciliation can be built on that.
+
+**What it does NOT demonstrate, and an earlier revision of this finding wrongly claimed it
+did:** that content from such a process actually reaches the card. Per F9, those heartbeats
+carried an ISO-8601 `updatedAt` — the encoding F6 proved undecodable — so the strong prediction
+is that none of them rendered. The token was exercised; the delivery path was not.
+
+**E8 therefore stands as: token addressability and death detection — answered. Content delivery
+from a stateless process — not answered by this run.** The missing half costs minutes once the
+instrumented build is in (it is E0's calibration), not another eight hours.
 
 ### Still open on the user-visible side
 
@@ -419,3 +436,71 @@ activity on this build (F4).
 
 **Consequence for the morning ask:** it must name B2 and B3 specifically, not just ask "are the
 cards still there".
+
+---
+
+## F9 — E4's heartbeats carried the one encoding F6 proved fatal. My error, caught before the confirming observation arrived.
+
+**What happened.** Every one of E4's 26 heartbeats sent `content-state.updatedAt` as an
+**ISO-8601 string**:
+
+```
+"content-state": {"v":1, "displayStatus":"delayed",
+                  "headline":"S4-E4 hb=001 elapsed=0h30m",
+                  "minutesToDeparture":6,
+                  "updatedAt":"2026-09-06T21:15:00Z"}
+```
+
+`e4_cap.py` used S2's `example_payload("la-update")` and left `refresh_la_fields` at its
+default, which rewrites `updatedAt` to a fresh ISO-8601 string on every send. Six hours later
+F6 established that an ISO-8601 string is precisely what ActivityKit's push decoder cannot
+decode into a Swift `Date`, and that one bad field discards the entire push.
+
+**So the strong prediction is that none of the 26 heartbeats ever reached the card.** They
+returned 26 `200 OK`s regardless. This is a fourth independent instance of F6's mechanism, and
+this time I walked into it myself while holding the finding that describes it.
+
+**How it was caught.** Not by the device, and not by me reviewing my own work — the
+orchestrator asked me to pre-register which conclusions would move if the pending observation
+(A4: what text was actually on the card) came back unfavourably. Working out what would have to
+change is what sent me to check the sent payloads. Worth recording as a process point: the
+request to state in advance what would falsify a result is what surfaced the defect, before any
+answer arrived to argue with.
+
+### What survives, what changes — registered in advance of A4
+
+| Claim | Status if A4 shows push text | Status if A4 shows the original local-start text |
+|---|---|---|
+| Token dies at exactly 8 h | **holds** | **holds** — APNs token validity does not depend on whether the app could decode the body |
+| `410 ExpiredToken` is a reliable death signal | **holds** | **holds** — same reason |
+| The *activity* ended at 8 h | holds | **inference only** — what was measured is token lifetime; card disappearance is A1/A3's job |
+| A stateless backend can *drive* an activity by stored token | **holds** | **retracted** — see below |
+| APNs `200` carries no delivery information | holds | **strengthened**, though by my bug rather than a platform failure |
+
+**The claim I am retracting in advance, because it is the one I would be tempted to keep.**
+F5 and F8b said a backend that lost all in-memory state "can keep pushing to an activity it did
+not start, using only a stored token", and I wrote that it answered PROTOCOL.md E8 without a
+separate experiment. That is too strong. What 27 heartbeats from a stateless process actually
+demonstrated is that **a stored token stays addressable for 8 hours and then reports its own
+death** — real, useful, and enough to build cleanup and reconciliation on. It did **not**
+demonstrate that content from such a process reaches the card, because the content was
+defective. Those are different claims and I conflated them.
+
+E8 therefore stands as: **token addressability and death detection — answered. Content delivery
+from a stateless process — not answered by this run.**
+
+**Cost to fix: minutes, not another eight hours.** The delivery half needs a numeric
+`updatedAt` and the render log, which is exactly E0's calibration. It does not need the cap
+re-run. `e4_cap.py` is fixed (numeric `updatedAt`, `refresh_la_fields=False`) so a repeat is
+correct if one is ever wanted.
+
+**Confidence: high** that the heartbeats were undecodable — the sent payloads are logged, and
+F6's split is unambiguous. The prediction is registered here **before** A4 is answered.
+
+### A landmine for anyone else using S2's harness
+
+The harness's `refresh_la_fields` default silently rewrites `content-state.updatedAt` to an
+ISO-8601 string on every Live Activity send. Given F6, **that default now reintroduces a fatal
+payload defect on every call that relies on it**, and it does so invisibly, behind a 200. Any
+future caller must pass `refresh_la_fields=False` and supply a numeric date, or the default must
+change. Flagged to the orchestrator rather than edited directly, since the harness is S2's.
