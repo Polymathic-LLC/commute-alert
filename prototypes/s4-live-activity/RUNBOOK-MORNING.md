@@ -13,13 +13,15 @@ Route questions and answers through the orchestrator, not to S4 directly.
 Everything in Part A is destroyed by unlocking, rebuilding, or opening the app. Please do it
 first.
 
-**A1. Wake the screen. Do not unlock.** Which of these cards are on the Lock Screen?
+**A1. Wake the screen. Do not unlock.** List every Live Activity card on the Lock Screen by its
+small grey top line — including any name not in this table, and write `none` if there are none.
 
 | Card (grey top line) | Still there? | If gone, roughly when last seen? |
 |---|---|---|
 | the no-push one (`CR-Worcester`) | | |
 | `S4-B2-epoch` | | |
 | `S4-B3-ref2001` | | |
+| anything else — write it in | | |
 
 **A2. For any card still present, read me its small bottom line.** It looks like
 `v1 · 5:11:53 PM`. **Copy it exactly** — the date and time on that line *are* the measurement,
@@ -29,23 +31,31 @@ One of these cards is expected to show a wrong date and one a correct one, and *
 is precisely what we do not know** — so please just transcribe what is there rather than
 deciding which looks right. A wrong date is a result, not a bug.
 
-**A3.** Did the no-push card disappear at around **00:44** last night? Anything you remember
-about when it went is useful, even "it was gone when I woke up".
+**A3.** If you noticed the no-push card disappear, roughly when was that? Any granularity is
+useful — a clock time, "some time after midnight", or "it was gone when I woke up". If you have
+no idea, say so; that is a normal answer and better than an estimate.
 
-**A4. A memory question, and it may be the most valuable thing in this list.** When you
-looked at the no-push card yesterday around 17:20 and saw real text under the loading symbol
-— **do you remember what that text said?** Specifically, did it look like
+**A4. A memory question, and it may be the most valuable thing in this list.** When you looked
+at the no-push card yesterday around 17:20 and saw real text under the loading symbol — **do
+you remember what that text said?** As best you can, write down what you remember of it before
+reading the options below.
 
-- `Local start — no push involved`  ← the text it was created with, or
-- `S4-E4 hb=001 elapsed=0h30m`  ← text that only a push could have put there
+If nothing comes back, these are the candidates it could have been:
 
-If you genuinely don't remember, say so — a guess here is worse than nothing.
+- `Local start — no push involved`
+- `S4-E4 hb=001 elapsed=0h30m` (or a similar line with a different number)
+- something else — write down whatever you remember
+- **you genuinely don't remember**
 
-> Why A4 matters: 27 pushes went to that activity over eight hours, and 25 of them came back
-> from Apple's servers as successes. Whether a single one reached the screen is unknown — and
-> we now have good reason to think none did, because those pushes carried a date format we
-> later proved the phone silently rejects. If the card still showed its original text, that is
-> confirmed, and every one of those "successes" was fictional.
+**Please treat the last one as a real answer, not a failure.** Memory for a glance at a lock
+screen sixteen hours ago is unreliable, and a guess that feels plausible is worse than nothing
+here — it would look exactly like data and quietly decide a design question. I have deliberately
+not told you which answer would be convenient for us, and I'd rather you didn't ask before
+answering.
+
+> Why A4 matters: 27 pushes went to that activity over eight hours, and 25 came back from
+> Apple's servers as successes. Whether any of them actually reached the screen is unknown, and
+> the text on that card is the only surviving evidence either way.
 
 ---
 
