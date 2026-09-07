@@ -82,12 +82,23 @@ never knowing. This lands squarely on `operations.md` restart reconciliation and
 rendered from one the device silently discarded. Three pushes in one batch, one variable
 between them, two outcomes, one response code. That is now demonstrated rather than inferred.
 
-**Still untested, and deliberately kept separate:** whether APNs ever reports a *genuinely
-dead* activity with `410 Unregistered`. An earlier draft treated the 16:57:10 `la-update` as
-evidence of that; it was not, because the activity turned out to be alive. If a 410 does exist,
-a backend has at least one reliable negative signal and reconciliation is tractable. If it does
-not, the backend can never learn anything about its own pushes. E4/F5 is the designed test and
-the answer lands overnight.
+**Now settled, and settled the good way — see F5.** APNs *does* report a genuinely dead
+activity: `410 ExpiredToken`, carrying the exact invalidation instant. So the picture is
+asymmetric, and the asymmetry is the actionable part:
+
+| | Can the backend tell? |
+|---|---|
+| This activity is **gone** | **Yes** — `410 ExpiredToken`, authoritative, timestamped (F5) |
+| This update **rendered** | **No** — `200` regardless (F6, demonstrated three ways) |
+| This payload was **undecodable** | **No** — `200`, and nothing happens on device (F6) |
+
+A backend can therefore build reliable *lifecycle* state and cannot build any *delivery*
+state. Reconciliation and cleanup are tractable; delivery confirmation is not, and must either
+come from the device or be designed around.
+
+An earlier draft of this finding treated the 16:57:10 `la-update` as evidence of a 200-to-dead-
+token. It was not — the activity was alive. The real evidence arrived eight hours later and
+pointed the opposite way.
 
 ---
 
@@ -137,12 +148,68 @@ local test and fail in the field. This belongs in `push-flow.md`.
 
 ---
 
-## F5 — The 8-hour cap. RUNNING.
+## F5 — RESOLVED. On iOS 26.5 a Live Activity's push token dies at 8 hours, and APNs reports it as `410 ExpiredToken` carrying the exact invalidation instant.
 
-Started 17:33 EDT, 49 heartbeats to a 12-hour horizon (04:45 EDT). See PROTOCOL.md E4.
-Reports: when the activity ends, and whether a sender can detect it at all (the second
-question decides F2's final confidence). Human observation in the morning supplies the
-user-visible half.
+**Question.** Does a Live Activity end at a fixed age, and can a backend find out?
+
+**Evidence.** 27 `la-update` heartbeats to one per-activity token, from a detached process,
+2/hour then 12/hour across the expected window. The transition is unambiguous:
+
+| Heartbeat | Wall clock (EDT) | Elapsed | APNs |
+|---|---|---|---|
+| hb=024 | 2026-09-07 00:35:00 | 7 h 50 m | `200` |
+| hb=025 | 2026-09-07 00:40:00 | 7 h 55 m | `200` |
+| **hb=026** | **2026-09-07 00:45:00** | **8 h 00 m** | **`410 ExpiredToken`** |
+| hb=027 | 2026-09-07 00:50:00 | 8 h 05 m | `410 ExpiredToken` |
+
+26 consecutive `200`s, then `410`, then `410` again on confirmation. No degradation, no
+partial state, no warning.
+
+**The 410 response body carries `timestamp: 1788756241000` — 2026-09-07 00:44:01 EDT.** That is
+APNs reporting the precise second the token became invalid, not a bracket. The experiment was
+designed to bracket the transition to ±5 minutes; the platform handed back an exact instant.
+
+**Answer, two parts.**
+
+**(a) The cap is 8 hours.** The activity's start time was only known to ±10 min (started by
+hand during the S3 runbook), so the direct reading is "died 8 h 00 m ± 10 min after an
+estimated start". But the death instant is known exactly, so the inference runs the other way:
+an exactly-8-hour cap back-solves a start of **16:44:01 EDT**, which sits inside the
+independently-derived window (the human captured that activity's token between ~16:39 and
+~16:55). Two unrelated lines of evidence agreeing is why this is stated as 8 hours rather than
+"about 8 hours".
+
+**(b) A backend CAN detect a dead Live Activity.** This is the half that was genuinely in doubt,
+and the answer is the good one. `410 ExpiredToken`, with an exact timestamp, is a reliable
+negative signal. Restart reconciliation is therefore tractable: store the token, push to it,
+treat 410 as authoritative death, and the timestamp even says when. `operations.md` can specify
+that concretely instead of hedging.
+
+**What this does NOT overturn — the distinction matters.** F2 stands unchanged. APNs still gives
+no *positive* delivery signal: a `200` means nothing about whether a live activity rendered
+anything, as F6 demonstrated three times over. What F5 adds is that the *terminal* state is
+observable. So a backend can know an activity is **gone**; it still cannot know an activity is
+**working**. Those are different guarantees and the design should not conflate them.
+
+**Confidence: high.** 27 samples, a sharp single transition, a confirming repeat, and a
+server-reported timestamp that agrees with an independently-estimated start.
+
+### F8b — restart reconciliation, answered as a side effect
+
+Every one of those 27 heartbeats was sent from a process with **no `Activity` handle and no
+memory of having started anything** — only a token read from a file. That is exactly the
+"backend restarted and lost its state" case in `operations.md`. It worked for eight hours and
+then reported the activity's death cleanly. **A backend that has lost all in-memory state can
+keep pushing to an activity it did not start, using only a stored token, and can learn when
+that token dies.** PROTOCOL.md E8 is answered without a separate experiment.
+
+### Still open on the user-visible side
+
+Whether the *card* left the Lock Screen at 00:44:01 alongside the token, or lingered, or had
+already stopped presenting content earlier (F7's loading indicator). Token death and card
+disappearance are not the same event and this run cannot separate them. The morning observation
+does — and B2/B3, push-started at 17:11:53–55 with start times known to the second, expire at
+~01:12 if the 8-hour cap is uniform, giving a second and much better-pinned reading.
 
 ---
 

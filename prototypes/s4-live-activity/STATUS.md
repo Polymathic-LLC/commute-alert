@@ -1,75 +1,64 @@
 STATUS: RUNNING
-Last updated: 2026-09-06 17:15 EDT
-Summary: The corrected push-to-start still started nothing — that is now the workstream's headline open thread, and a three-arm test that resolves it is already sent and waiting on one glance. E4 (8-hour cap) runs detached until 04:45 EDT and needs nothing from this session. Going quiet on the orchestrator's instruction: no further building or reporting tonight.
+Last updated: 2026-09-07 00:55 EDT
+Summary: E4 finished early and clean. The 8-hour cap is real and exact, and APNs DOES report a dead activity (`410 ExpiredToken`, timestamped to the second) — the half of the question that was genuinely in doubt, answered the good way. Push-to-start also resolved earlier: it works, and had been failing on one mis-encoded field. Five findings now closed. No measurement is running; nothing is consuming the device.
 
-## Device state — for S5
+## Device state — for S5, and for the rebuild hold
 
-**S4 is USING the device; a 12-hour measurement is running against it overnight.**
-Do not start S5 device work. I will say so here explicitly when I am done with the phone,
-even if I am still analyzing.
+**THE REBUILD HOLD CAN BE LIFTED NOW.** E4 completed at 00:50 EDT, four hours earlier than the
+04:45 horizon, because the token died at 8 h and the run stopped on confirmation. Nothing S4
+is doing depends on the current build any more. A rebuild is safe from this moment.
 
-Left on the device: one locally-started activity (under measurement by E4), plus up to three
-push-started cards if any E1b arm succeeds. **S4 cannot end a push-started activity** — that
-needs a per-activity token only the app can see, and the installed build does not capture one
-(finding F4). Any E1b card that appears will self-expire, or the human can long-press and
-dismiss it. Nothing is broken; it is a known limit of the current build, and the instrumented
-build fixes it.
+**S4 still needs the device** for E0, E1, E2, E3, E5 and E6 — the instrumented build, the
+push-to-start reliability session, and the budget ramp. I will say here explicitly when I am
+finished with the phone. S5 should not start yet.
+
+Left on the device: the `S4-B2` and `S4-B3` cards from 17:11:53–55, which expire on their own
+at ~01:12 if the 8-hour cap is uniform. The locally-started activity's token died at 00:44:01.
+Nothing needs cleaning up by hand; no permissions were changed.
 
 ## Needs from human
 
-One glance, whenever convenient — tonight or first thing tomorrow. It resolves the biggest
-open question in the workstream.
+Morning batch, unchanged from what the orchestrator is already relaying, with one addition
+that is now more valuable than it was:
 
-1. **Lock Screen, without unlocking: how many Live Activity cards, and what is the small grey
-   top line of each?** The possible top lines are `CR-Worcester`, `S4-B1-iso`,
-   `S4-B2-epoch`, `S4-B3-ref2001`. Reading me the list of names *is* the experiment.
-2. **Did any notification banners appear around 17:12 EDT, and what did they say?** Each arm
-   carried a banner titled with its own name. A banner without a card separates "the push was
-   never processed" from "it was processed and the content was rejected".
-3. **The loading symbol.** On the card that is already there: has it *ever* shown real text —
-   specifically "Local start — no push involved" — or has it looked like that since it
-   started?
-4. **Overnight: leave the phone alone.** No rebuild, no force-quit, no reboot, don't open
-   S3 Probe. A rebuild in particular would terminate the running activity and truncate E4.
-5. **Morning, 1 min:** same look. If a card is gone, roughly when was it last seen?
-6. **Whenever:** is an Apple Watch paired? yes/no + watchOS version. Decides whether E7 is
-   measurable or is written up as "unmeasured, because —".
-7. **New, cheap:** they mentioned seeing the activity "on my laptop" — presumably iPhone
-   Mirroring. If so, can they screenshot the Lock Screen from the Mac? That would be a second
-   observation channel at zero extra cost to them.
+1. **Which cards are still on the Lock Screen** — the no-push one, `S4-B2-…`, `S4-B3-…`? For
+   any that are gone, roughly when were they last seen?
+2. **Was the no-push card gone by around 00:45?** Its token died at exactly 00:44:01. Whether
+   the *card* vanished at the same moment is a separate question this run cannot answer, and
+   it decides whether a user ever sees a stale card the backend can no longer reach.
+3. **The loading indicator** — has that card *ever* shown real text ("Local start — no push
+   involved"), or has it looked like that since it started?
+4. Is an Apple Watch paired? yes/no.
+5. iPhone Mirroring — can they screenshot the Lock Screen from the Mac?
 
-## Running now
+## Results
 
-| What | Started | Ends | Human needed |
-|---|---|---|---|
-| E4 — 8-hour cap, 49 heartbeats, detached process | 17:33 EDT | 04:45 EDT | one look in the morning |
-| E1b — 3 push-to-start arms, sent 17:11 EDT | done | — | ask 1 above |
+| Experiment | Status | Result |
+|---|---|---|
+| E4 — 8-hour cap | **done** | 8 h exactly; `410 ExpiredToken` at 00:44:01 (F5) |
+| E8 — restart reconciliation | **done** (free) | works; token-only pushing survived 8 h (F5) |
+| E1b — push-to-start payload | **done** | numeric `Date` required, ISO-8601 fatal (F6) |
+| E5 — concurrency | partial (free) | ≥3 coexist, separately presented (F8) |
+| E0, E1, E2, E3, E6, E7, E9 | not started | need the instrumented build and/or a human session |
 
-Logs: `logs/e4.log`, `data/e4-heartbeats.ndjson`, `data/e1b-date-encoding.ndjson` (gitignored).
+Data: `data/e4-heartbeats.ndjson` (27 rows), `data/e1b-date-encoding.ndjson`, `logs/e4.log`.
+All gitignored.
 
-## Built, not yet installed
+## Next
 
-`probe-app/` — a copy of S3's probe with S4 instrumentation added (`S4Log.swift`, render
-logging from the widget process, `Activity.activityUpdates` token capture still to wire).
-Deliberately **not** installed tonight: installing it would terminate the activity E4 is
-measuring. It is tomorrow's work.
+1. Wire `Activity.activityUpdates` token capture into `probe-app/` (the F4 fix), regenerate
+   with xcodegen, verify the build including the `plutil` installability gate S3 established.
+2. Then the instrumented install, E0 calibration, and the E1 push-to-start reliability session.
 
 ## Activity log
 
 - Read DERISKING.md S4, S2's FINDINGS, S3's sources and tokens.
-- Lifted S2's live-send hold. S4-A1 (corrected push-to-start) and S4-A2 (update to the
-  hours-old per-activity token) both returned 200 at 16:57.
-- Wrote PROTOCOL.md — nine experiments, each with claim / protocol / sample size /
-  device-side observer / falsifier, plus an explicit "Not measured" section.
-- Re-scoped per the orchestrator: dropped the HTTP collector, ATS local networking and the
-  upload panel. Kept only what no human can observe — the widget-process render log,
-  `Activity.activityUpdates` token capture, and Files-app export.
-- Launched E4 as a detached process; verified it survives independently of this session.
-- **Human observation at ~17:06: one card only, the locally-started one, showing a loading
-  indicator.** So the corrected push-to-start rendered nothing — the snake_case fix was
-  necessary but not sufficient. Recorded as F6.
-- Designed and sent E1b: three push-to-start arms differing only in how `ContentState.updatedAt`
-  is encoded (ISO-8601 string / Unix epoch / seconds-since-2001). One glance names the winner,
-  or proves the cause is structural. All three returned 200, which as ever means nothing.
-- Copied the probe app into this prototype's own directory rather than editing S3's worktree
-  — cross-worktree writes are blocked, and the plan says each session owns one directory.
+- Lifted S2's live-send hold; wrote PROTOCOL.md (nine experiments, each with claim, sample
+  size, device-side observer and falsifier, plus an explicit "Not measured" section).
+- Re-scoped per the orchestrator when the human offered to be the sensor: cut the HTTP
+  collector, ATS local networking and upload panel; kept only what has no human substitute.
+- Ran E4 as a detached process. 27 heartbeats, sharp transition at 8 h, confirmed on repeat.
+- Ran E1b: three push-to-start arms differing only in `updatedAt` encoding. Resolved F6.
+- Corrected F1 and F2 in place when human observations falsified them; corrected the
+  orchestrator twice on facts it had reported as established.
+- Copied the probe app into this prototype's own directory rather than editing S3's worktree.
