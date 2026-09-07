@@ -226,7 +226,9 @@ Whether the *card* left the Lock Screen at 00:44:01 alongside the token, or ling
 already stopped presenting content earlier (F7's loading indicator). Token death and card
 disappearance are not the same event and this run cannot separate them. The morning observation
 does — and B2/B3, push-started at 17:11:53–55 with start times known to the second, expire at
-~01:12 if the 8-hour cap is uniform, giving a second and much better-pinned reading.
+~01:12 **if** card lifetime tracks token lifetime and the 8 h figure is uniform — both of which
+are exactly what A1/A3 are meant to test, not assumptions to reason from. If they hold, that is
+a second and far better-pinned reading, because those two start times are known to the second.
 
 ---
 
@@ -464,7 +466,8 @@ F6 established that an ISO-8601 string is precisely what ActivityKit's push deco
 decode into a Swift `Date`, and that one bad field discards the entire push.
 
 **So the strong prediction is that none of them ever reached the card.** They
-returned 26 `200 OK`s regardless. This is a fourth independent instance of F6's mechanism, and
+returned 25 `200 OK`s and 2 `410`s regardless. This is a fourth independent instance of F6's
+mechanism, and
 this time I walked into it myself while holding the finding that describes it.
 
 **How it was caught.** Not by the device, and not by me reviewing my own work — the
