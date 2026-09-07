@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
 """E1b — why did the corrected push-to-start still start nothing?
 
+RUN AND ANSWERED, 2026-09-06 17:11 EDT. Read the rest of this docstring as the
+hypothesis as it stood BEFORE the result, not as a conclusion.
+
+  Outcome: B1-iso produced no card and no banner; B2-epoch and B3-ref2001 both
+  produced both. So a JSON string in a `Date` field is fatal and a number works.
+
+  STILL OPEN: which epoch the number is read against. Both numeric arms rendered
+  and they differ only in the value produced, so this experiment cannot separate
+  them — see F10. The "<-- JSONDecoder default" arrow below was a prediction and
+  is NOT a finding. Do not cite it as one.
+
 At 16:57:09 a push-to-start with keys matching S3's Swift structs exactly
 returned 200 and produced no card. The snake_case fix was necessary but not
 sufficient. Something else in the payload is still being rejected by

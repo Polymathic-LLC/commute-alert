@@ -270,10 +270,16 @@ it, so a reasonable person would expect the banner to survive a content-state de
 It does not. **One bad field discards the whole push — the activity and the user-visible
 notification with it.** A backend cannot fall back on "at least the alert got through".
 
-**Mechanism.** `ContentState.updatedAt` is a Swift `Date`. `JSONDecoder`'s default
-`dateDecodingStrategy` is `.deferredToDate`, which expects a number. Handed a string it throws,
-the *whole* `ContentState` fails to decode with it, and ActivityKit creates nothing and reports
-nothing to anyone. A single mistyped field discards the entire push, silently, behind a 200.
+**Mechanism — observed part, then the inferred part, kept apart on purpose.**
+
+*Observed:* a `Date`-typed field handed a JSON string kills the whole push. The
+`ContentState` fails to decode, ActivityKit creates nothing, and nobody is told.
+
+*Inferred:* the likely cause is that ActivityKit uses a stock `JSONDecoder`, whose default
+`dateDecodingStrategy` is `.deferredToDate` and expects a number. **That specific strategy is
+not established** — any numeric strategy would produce the same string-fails/number-works
+split, and which one is in play is exactly what F10 records as open. The design consequence
+below rests only on the observed part.
 
 **Hard requirement on the production payload, and it is not obvious.** Any `Date` in a
 `ContentState` must be sent as a **JSON number**, never as an ISO-8601 string — which is what a
@@ -284,8 +290,9 @@ diagnostic: no APNs error, no device log a server can see, no partial render. It
 project two failed pushes and most of an afternoon, and the same mistake in production would
 present as "Live Activities just don't work" with nothing to debug.
 
-**Cheapest mitigation for layer 2: do not put a `Date` in `ContentState` at all.** Send an
-integer of epoch seconds and convert client-side. That removes the failure mode rather than
+**Cheapest mitigation for layer 2: do not put a `Date` in `ContentState` at all.** Send a
+plain integer timestamp in an `Int` field and convert client-side — which also sidesteps F10
+entirely, since the reference epoch stops mattering once no field is `Date`-typed. That removes the failure mode rather than
 documenting it, and `display-contract.md`'s content-state field set is still Open, so the
 decision is free to make now.
 
