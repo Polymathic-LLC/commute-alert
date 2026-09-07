@@ -1,0 +1,114 @@
+# S4 — morning device session
+
+One sitting. **Part A is 2 minutes and is time-sensitive — do it before touching anything
+else, including before unlocking the phone.** Parts B and C are ~20 minutes together and can
+happen any time after.
+
+Route questions and answers through the orchestrator, not to S4 directly.
+
+---
+
+## Part A — before you unlock the phone (2 min)
+
+Everything in Part A is destroyed by unlocking, rebuilding, or opening the app. Please do it
+first.
+
+**A1. Wake the screen. Do not unlock.** Which of these cards are on the Lock Screen?
+
+| Card (grey top line) | Still there? | If gone, roughly when last seen? |
+|---|---|---|
+| the no-push one (`CR-Worcester`) | | |
+| `S4-B2-epoch` | | |
+| `S4-B3-ref2001` | | |
+
+**A2. For any card still present, read me its small bottom line.** It looks like
+`v1 · 5:11:53 PM`. **The time on that line is the measurement** — copy it exactly, including
+AM/PM. If a card shows a wildly wrong time (a date in 2057, say), that is the expected
+result for one of them, not a bug — it is precisely what we are trying to find out.
+
+**A3.** Did the no-push card disappear at around **00:44** last night? Anything you remember
+about when it went is useful, even "it was gone when I woke up".
+
+**A4. A memory question, and it may be the most valuable thing in this list.** When you
+looked at the no-push card yesterday around 17:20 and saw real text under the loading symbol
+— **do you remember what that text said?** Specifically, did it look like
+
+- `Local start — no push involved`  ← the text it was created with, or
+- `S4-E4 hb=001 elapsed=0h30m`  ← text that only a push could have put there
+
+If you genuinely don't remember, say so — a guess here is worse than nothing.
+
+> Why A4 matters: 26 pushes to that activity returned success from Apple's servers over eight
+> hours. Whether any of them actually reached the screen is unknown. If the card still said
+> its original text, then none of them ever landed, and every "success" was fictional.
+
+---
+
+## Part B — install the instrumented build (~10 min)
+
+The hold is lifted; the overnight measurement finished early and nothing depends on the old
+build now.
+
+1. Open **`prototypes/s4-live-activity/probe-app/S3Probe.xcodeproj`**.
+   **Note the path — this is a different project from the one you used yesterday.** Same app,
+   same bundle ID, same team, so signing should need no new setup. If Xcode asks to register
+   anything, let it.
+2. Select the **S3Probe** scheme and your iPhone, then ⌘R.
+3. When the app opens, check the **S4 — instrument** section: `App Group container` should say
+   **ok**. If it says `MISSING`, stop and report that — the log has nowhere to go and the rest
+   of the session is pointless.
+4. Tap **Refresh / snapshot**. Tell me what the snapshot lines say (they list every live
+   activity the app can see, with its state).
+
+Installing replaces the app, which ends any Live Activities still running. That is expected
+and fine — Part A has already captured what mattered.
+
+---
+
+## Part C — push-to-start reliability (~20 min, clock-driven)
+
+This is the question the whole product rests on: can the backend start a Live Activity with
+no user interaction, whatever state the phone is in?
+
+**How this works.** You follow a timetable. I send pushes on the same timetable. You never
+wait on me and I never wait on you — just do each step at the stated time and write one line.
+**Pick a start time, tell the orchestrator, and start on the minute.** Call it T.
+
+| Time | What you do |
+|---|---|
+| T+0:00 | Open S3 Probe, then swipe it away in the app switcher (**force-quit**). Lock the phone, put it down. |
+| T+3:00 | Wake the screen, don't unlock. Card present? Write the grey top line. |
+| T+4:00 | Force-quit again if it's open. Lock. |
+| T+7:00 | Wake, don't unlock. Card present? Write the top line. |
+| T+8:00 | Turn **Low Power Mode** on (Settings → Battery). Force-quit the app. Lock. |
+| T+11:00 | Wake, don't unlock. Card present? Write the top line. |
+| T+12:00 | **Reboot the phone.** Do **not** unlock it after it restarts — leave it on the passcode screen. |
+| T+17:00 | Look at the Lock Screen, still without unlocking. Card present? Top line? |
+| T+18:00 | Now unlock once, but **do not open S3 Probe**. Lock again. |
+| T+21:00 | Wake, don't unlock. Card present? Top line? |
+| T+22:00 | Turn Low Power Mode back off. Open S3 Probe, tap **Refresh / snapshot**, then **Export log to Files**, then **End ALL activities**. |
+
+Log format — one row per check, that's all:
+
+```
+T+3    card? yes/no    top line: ____________
+T+7    card? yes/no    top line: ____________
+T+11   card? yes/no    top line: ____________
+T+17   card? yes/no    top line: ____________
+T+21   card? yes/no    top line: ____________
+```
+
+Each push carries a different name in the top line (`S4-E1-C2-t1` and so on), so the name
+tells me which push produced which card. **"A card is there" is not the answer — the name
+is.** A leftover card from an earlier step reads identically to a fresh one otherwise.
+
+**If a step shows no card, that is a result, not a mistake.** It is the single most valuable
+outcome this session can produce, so please write "no" plainly rather than retrying or
+waiting a bit longer.
+
+---
+
+## Not in this session
+
+Pairing the Apple Watch. It's worth doing and it's queued, but it's heavier than the rest and
+the questions above block a design decision that mirroring does not. Separate sitting.

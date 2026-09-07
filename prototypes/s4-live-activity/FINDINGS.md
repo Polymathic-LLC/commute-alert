@@ -242,6 +242,17 @@ from a JSON string to a JSON number.** Nothing else changed — same topic, same
 `attributes-type`, same key spellings, same five `content-state` keys. All three arms returned
 `200`, so APNs distinguished none of them.
 
+**Human-confirmed on a second channel.** Each arm carried an `aps.alert` titled with its own
+name. The user reported seeing **exactly two banners — `S4-B2-epoch` and `S4-B3-ref2001`.
+`S4-B1-iso` produced nothing at all.** So the split is directly observed twice over, on two
+independent surfaces, rather than inferred from card presence alone.
+
+**And that second channel says something the first could not: the alert dies with the
+`ContentState`.** `aps.alert` is a sibling of `content-state` in the payload, not a child of
+it, so a reasonable person would expect the banner to survive a content-state decode failure.
+It does not. **One bad field discards the whole push — the activity and the user-visible
+notification with it.** A backend cannot fall back on "at least the alert got through".
+
 **Mechanism.** `ContentState.updatedAt` is a Swift `Date`. `JSONDecoder`'s default
 `dateDecodingStrategy` is `.deferredToDate`, which expects a number. Handed a string it throws,
 the *whole* `ContentState` fails to decode with it, and ActivityKit creates nothing and reports
@@ -322,7 +333,36 @@ governing constraint at the top of this file.
 
 ---
 
-## F7 — A live Live Activity was observed showing a loading indicator rather than content. Unexplained.
+## F7 — REFRAMED. The loading indicator is an overlay on correctly-rendered content, not a failure. Cause still open, and it may be a feature.
+
+**Resolved by a second human observation:** *"the no push started with real text and I can
+still see real text under the loading symbol."*
+
+**That kills the two dangerous readings outright.** The widget extension **is** installed and
+**is** rendering — so instrument I1 (the render log) is viable, and "a Live Activity can be
+started locally on this device" is now **confirmed** rather than assumed. Both of those were
+load-bearing for the rest of the workstream, and both were genuinely in doubt for a couple of
+hours: S3 had recorded that the widget target's signing was never separately verified, and a
+`.appex` that failed to install would have produced exactly the symptom reported.
+
+**What remains is an activity that renders correctly *and* carries a progress/loading
+affordance.** Most likely a staleness or pending-update signal from iOS rather than an error.
+One check I can already report: **the probe passes `staleDate: nil`** on local start
+(`LiveActivityController` line 50), and none of S2's push payloads set `aps.stale-date`. So
+whatever produces the overlay, it is **not** an explicit stale date we set — either iOS
+applies a default staleness window when given none, or the affordance means something else.
+E10 (below) tests it directly by setting one deliberately.
+
+**Why this could be a product finding rather than a bug.** If iOS marks a Live Activity as
+visibly stale on its own, the platform provides a freshness signal for free, and the cost of a
+missed update drops: the user is told the content may be old rather than being silently shown
+a lie. That interacts directly with the update-budget question and with the honest-freshness
+problem in `push-flow.md`, which currently assumes the app must solve it. Worth knowing before
+that gets designed.
+
+**Confidence: high** that the overlay is not a rendering failure. **No cause claimed.**
+
+### Superseded — the three hypotheses as first written
 
 **Evidence.** The human's 17:06 report: the one card present is "the no_push live activity
 with a loading symbol". The locally-started activity exists and is addressable (E4's

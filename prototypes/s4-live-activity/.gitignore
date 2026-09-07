@@ -4,3 +4,5 @@ logs/
 .venv/
 __pycache__/
 *.pyc
+probe-app/S3Probe.xcodeproj/project.xcworkspace/xcuserdata/
+probe-app/S3Probe.xcodeproj/xcuserdata/

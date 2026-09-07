@@ -1,0 +1,477 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0A20546EA04CE60FAAABEDD6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A16FB0A6EA3DFCA70DC0585 /* ContentView.swift */; };
+		143EFC8A3FB7B18284909997 /* S4Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBBC2708FD8AE3DFD9971883 /* S4Log.swift */; };
+		34A1E388C0E183B42DC19E2E /* ProbeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43E36168C8F64846C39CB1BE /* ProbeModel.swift */; };
+		35F426F5E3F9C2F46843B789 /* S3ProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08FB04BAEE2A61DFC7E047B2 /* S3ProbeApp.swift */; };
+		4ED58B0606C1C0A66DACCC8B /* CommuteStaticWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C086C1124E617D44C02EBC /* CommuteStaticWidget.swift */; };
+		51624110654A66D1A9A258CC /* S3ProbeWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905EBBEBFE494E8DB389F876 /* S3ProbeWidgetBundle.swift */; };
+		5E3B96C54E971BF781E4CF18 /* CommuteLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31739EE1BBB5DEA19B35995B /* CommuteLiveActivity.swift */; };
+		85A8BA7BECACE8990C16A39A /* CommuteActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0DB67CDE0237B2FAE231F77 /* CommuteActivityAttributes.swift */; };
+		8FF37DB6AF4EE97CC057790B /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0A2EDF3D71AE249BE3C5B2 /* LiveActivityController.swift */; };
+		A072584FC1A74321972B4975 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F74636AF5348394CC403C6 /* AppDelegate.swift */; };
+		A6536249A02EC1EAA45F8261 /* S3ProbeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9ADB04A22540441B7A9FAAA4 /* S3ProbeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DEB96BF5FA7707A444EA6FBF /* CommuteActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0DB67CDE0237B2FAE231F77 /* CommuteActivityAttributes.swift */; };
+		F2C2823F435C7DC6B4E0061C /* S4Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBBC2708FD8AE3DFD9971883 /* S4Log.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		18FEFEB4EF6696CAA33E7BA8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4FF587095ED8BBF4FEB87BB7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1962B8291E74BB91EFA5A36E;
+			remoteInfo = S3ProbeWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		04144AA2968724BF34D86069 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A6536249A02EC1EAA45F8261 /* S3ProbeWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		08FB04BAEE2A61DFC7E047B2 /* S3ProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = S3ProbeApp.swift; sourceTree = "<group>"; };
+		2A0A2EDF3D71AE249BE3C5B2 /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
+		31739EE1BBB5DEA19B35995B /* CommuteLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommuteLiveActivity.swift; sourceTree = "<group>"; };
+		43E36168C8F64846C39CB1BE /* ProbeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeModel.swift; sourceTree = "<group>"; };
+		5D7FCFCFEEA8933E3C7F7B0E /* S3Probe.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = S3Probe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A16FB0A6EA3DFCA70DC0585 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		85C086C1124E617D44C02EBC /* CommuteStaticWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommuteStaticWidget.swift; sourceTree = "<group>"; };
+		905EBBEBFE494E8DB389F876 /* S3ProbeWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = S3ProbeWidgetBundle.swift; sourceTree = "<group>"; };
+		9ADB04A22540441B7A9FAAA4 /* S3ProbeWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = S3ProbeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9F74636AF5348394CC403C6 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		E0DB67CDE0237B2FAE231F77 /* CommuteActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommuteActivityAttributes.swift; sourceTree = "<group>"; };
+		EBBC2708FD8AE3DFD9971883 /* S4Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = S4Log.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		4099E22A7853E0CA5FC41F8D /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				E0DB67CDE0237B2FAE231F77 /* CommuteActivityAttributes.swift */,
+				EBBC2708FD8AE3DFD9971883 /* S4Log.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		92B448AB73AFB1C5AEA31482 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5D7FCFCFEEA8933E3C7F7B0E /* S3Probe.app */,
+				9ADB04A22540441B7A9FAAA4 /* S3ProbeWidget.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9E7269B7035C1108834F7C76 /* Widget */ = {
+			isa = PBXGroup;
+			children = (
+				31739EE1BBB5DEA19B35995B /* CommuteLiveActivity.swift */,
+				85C086C1124E617D44C02EBC /* CommuteStaticWidget.swift */,
+				905EBBEBFE494E8DB389F876 /* S3ProbeWidgetBundle.swift */,
+			);
+			path = Widget;
+			sourceTree = "<group>";
+		};
+		B5EC26C1FA3F06C8B04C789D /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				E4DF4F6C9366B7C4F0B7BF1C /* App */,
+				4099E22A7853E0CA5FC41F8D /* Shared */,
+				9E7269B7035C1108834F7C76 /* Widget */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		C3C932F018F32039A444A0FB = {
+			isa = PBXGroup;
+			children = (
+				B5EC26C1FA3F06C8B04C789D /* Sources */,
+				92B448AB73AFB1C5AEA31482 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E4DF4F6C9366B7C4F0B7BF1C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D9F74636AF5348394CC403C6 /* AppDelegate.swift */,
+				7A16FB0A6EA3DFCA70DC0585 /* ContentView.swift */,
+				2A0A2EDF3D71AE249BE3C5B2 /* LiveActivityController.swift */,
+				43E36168C8F64846C39CB1BE /* ProbeModel.swift */,
+				08FB04BAEE2A61DFC7E047B2 /* S3ProbeApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1962B8291E74BB91EFA5A36E /* S3ProbeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 70B5A354066C4B981C85C225 /* Build configuration list for PBXNativeTarget "S3ProbeWidget" */;
+			buildPhases = (
+				24D137BA2683420FE2D84F4E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = S3ProbeWidget;
+			packageProductDependencies = (
+			);
+			productName = S3ProbeWidget;
+			productReference = 9ADB04A22540441B7A9FAAA4 /* S3ProbeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		83C64E1E4CFAE34EB01C9FB7 /* S3Probe */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0847D42FE8AE332BC18F4A3D /* Build configuration list for PBXNativeTarget "S3Probe" */;
+			buildPhases = (
+				C517351FDCE88A5CB8D9FEEA /* Sources */,
+				04144AA2968724BF34D86069 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C7DC5DE9A125956524F7F4F8 /* PBXTargetDependency */,
+			);
+			name = S3Probe;
+			packageProductDependencies = (
+			);
+			productName = S3Probe;
+			productReference = 5D7FCFCFEEA8933E3C7F7B0E /* S3Probe.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4FF587095ED8BBF4FEB87BB7 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					1962B8291E74BB91EFA5A36E = {
+						DevelopmentTeam = MSQSPT8P3W;
+						ProvisioningStyle = Automatic;
+					};
+					83C64E1E4CFAE34EB01C9FB7 = {
+						DevelopmentTeam = MSQSPT8P3W;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 25E23A3A6B0D6E16E9D3B4AD /* Build configuration list for PBXProject "S3Probe" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = C3C932F018F32039A444A0FB;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 92B448AB73AFB1C5AEA31482 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				83C64E1E4CFAE34EB01C9FB7 /* S3Probe */,
+				1962B8291E74BB91EFA5A36E /* S3ProbeWidget */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		24D137BA2683420FE2D84F4E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				85A8BA7BECACE8990C16A39A /* CommuteActivityAttributes.swift in Sources */,
+				5E3B96C54E971BF781E4CF18 /* CommuteLiveActivity.swift in Sources */,
+				4ED58B0606C1C0A66DACCC8B /* CommuteStaticWidget.swift in Sources */,
+				51624110654A66D1A9A258CC /* S3ProbeWidgetBundle.swift in Sources */,
+				F2C2823F435C7DC6B4E0061C /* S4Log.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C517351FDCE88A5CB8D9FEEA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A072584FC1A74321972B4975 /* AppDelegate.swift in Sources */,
+				DEB96BF5FA7707A444EA6FBF /* CommuteActivityAttributes.swift in Sources */,
+				0A20546EA04CE60FAAABEDD6 /* ContentView.swift in Sources */,
+				8FF37DB6AF4EE97CC057790B /* LiveActivityController.swift in Sources */,
+				34A1E388C0E183B42DC19E2E /* ProbeModel.swift in Sources */,
+				35F426F5E3F9C2F46843B789 /* S3ProbeApp.swift in Sources */,
+				143EFC8A3FB7B18284909997 /* S4Log.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C7DC5DE9A125956524F7F4F8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1962B8291E74BB91EFA5A36E /* S3ProbeWidget */;
+			targetProxy = 18FEFEB4EF6696CAA33E7BA8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		02E51283152A8E019F12FC21 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Sources/Widget/S3ProbeWidget.entitlements;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Sources/Widget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.polymathic.commutealert.s3probe.widget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		422230FA575D8CB9A9C39E94 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = MSQSPT8P3W;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				MARKETING_VERSION = 0.1;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		5B80F77D740639B7E4D2F5CB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = MSQSPT8P3W;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				MARKETING_VERSION = 0.1;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		8E9B3766CD33EA71FF351A89 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/App/S3Probe.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Sources/App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.polymathic.commutealert.s3probe;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BAC065D1B8FF40845DAF2408 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Sources/Widget/S3ProbeWidget.entitlements;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Sources/Widget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.polymathic.commutealert.s3probe.widget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C605D72055619F6E5A59AADD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/App/S3Probe.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Sources/App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.polymathic.commutealert.s3probe;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0847D42FE8AE332BC18F4A3D /* Build configuration list for PBXNativeTarget "S3Probe" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8E9B3766CD33EA71FF351A89 /* Debug */,
+				C605D72055619F6E5A59AADD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		25E23A3A6B0D6E16E9D3B4AD /* Build configuration list for PBXProject "S3Probe" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5B80F77D740639B7E4D2F5CB /* Debug */,
+				422230FA575D8CB9A9C39E94 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		70B5A354066C4B981C85C225 /* Build configuration list for PBXNativeTarget "S3ProbeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BAC065D1B8FF40845DAF2408 /* Debug */,
+				02E51283152A8E019F12FC21 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4FF587095ED8BBF4FEB87BB7 /* Project object */;
+}

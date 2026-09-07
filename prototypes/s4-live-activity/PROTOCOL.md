@@ -27,7 +27,7 @@ is a fact APNs itself holds. That is used in E4 and nowhere else.
 | Model | iPhone 15 Pro (`iPhone16,1`) |
 | iOS | **26.5** |
 | App | `com.polymathic.commutealert.s3probe`, built against iOS 26.2 SDK, deployment target 17.2 |
-| Paired Watch | **unknown** — human ask outstanding; decides whether E7 is measurable |
+| Paired Watch | none currently — the user has one and is willing to pair it, so E7 is schedulable, not unmeasurable |
 | APNs env | sandbox (`aps-environment: development`) |
 
 `ios/CLAUDE.md` and the plan target **iOS 17.2+**, because 17.2 is the push-to-start floor.
@@ -98,11 +98,16 @@ happened*. It is the reconciliation instrument (E8) and the tiebreaker when I1 i
 ### Transport
 
 All three write NDJSON to the App Group container
-`group.com.polymathic.commutealert.s3probe`. The app uploads the file to a collector on the
-Mac (`http://192.168.1.22:8787/ingest`) on launch, every 30 s while foregrounded, and on a
-button. The log is append-only and survives the collector being down, so a failed upload
-loses nothing. `UIFileSharingEnabled` is set so the file is also recoverable via
-Files/AirDrop if the network path fails entirely.
+`group.com.polymathic.commutealert.s3probe`, appended with POSIX `O_APPEND` so the widget and
+app processes cannot interleave a line.
+
+Getting it off the phone is deliberately low-tech. An earlier design had an HTTP collector on
+the Mac, an ATS local-networking exception and a live upload panel; **all of it existed only
+to avoid asking a human, and all of it was cut** once the user said they would rather be
+asked. What replaced it: `UIFileSharingEnabled`, so the log appears in the Files app and can
+be AirDropped in one gesture, plus an on-device summary screen that groups observed renders by
+experiment tag and lists the sequence numbers seen — so the common case needs no file transfer
+at all, just a screenshot.
 
 ### Correlation key
 
@@ -415,3 +420,62 @@ NDJSON. `observed/sent` is the answer. Explicitly a rough measurement, and label
 - **Production APNs environment.** Sandbox only.
 - **Device diversity.** One device, one carrier, one network. Nothing here separates
   device-specific from platform-wide behaviour.
+
+---
+
+# E10 — is the loading overlay iOS's staleness affordance?
+
+Added after the human observed a Live Activity rendering correct content *with* a
+progress/loading overlay on top (F7).
+
+**Claim.** The overlay is iOS signalling "this content may be out of date", not an error.
+
+**Why it is worth a designed test rather than a shrug.** If the platform degrades a card's
+appearance on its own when updates stop, it provides a freshness signal for free, the cost of
+a missed update drops, and the honest-freshness problem in `push-flow.md` has a partial
+platform-provided answer instead of needing an app-side one. That is a design input, and it
+points the opposite way from "a stale card silently lies to the user".
+
+**Established already:** the probe passes `staleDate: nil` on local start and no push payload
+sets `aps.stale-date`. So the overlay is *not* caused by a stale date we set.
+
+**Protocol.** Start an activity with an explicit `staleDate` of now + 120 s (the app has a
+button). Observe at +30 s (expect: no overlay) and +180 s (expect: overlay). Then start a
+second with `staleDate: nil` and leave it untouched for an hour, checking once, to see whether
+an overlay appears anyway — which would mean iOS applies a default staleness window.
+
+**Falsifier.** The overlay appears at +30 s on the explicit-stale activity, or never appears
+after the stale date passes. Either kills the staleness reading and the overlay means
+something else.
+
+**Sample size.** 2 activities, 3 observations. Cheap, and it rides along with any other
+attended session.
+
+---
+
+# E7 — Watch mirroring
+
+Moved from "unmeasured, because no hardware" to schedulable: the user has an Apple Watch, is
+willing to pair it, and it is not currently paired.
+
+**Claim.** `ios/CLAUDE.md` assumes Live Activities mirror to a paired Apple Watch. Does that
+hold on this OS pair, and what does the mirrored presentation actually show?
+
+**Cost, stated honestly.** Pairing a Watch is heavy device interaction — tens of minutes, and
+it changes the device's state for everything afterwards. It is queued behind the questions that
+block design decisions, per the user's own stated preference for fewer well-instrumented
+measurements over broad coverage. Mirroring blocks nothing; the epoch question and the
+push-to-start conditions do.
+
+**Protocol, once paired.** No extra sends: E1's C1 trial and one E2 block are simply observed
+on the Watch as well as the phone.
+1. With an activity live, is it present on the Watch face / in the Smart Stack? Photograph it.
+2. Push one update. Does the Watch presentation change, and roughly how long after the phone?
+3. End the activity by push. Does the Watch card clear too, or linger?
+4. With the phone powered off or out of range, does the Watch still show the activity?
+
+**Falsifier.** No mirrored presentation appears with a paired, unlocked Watch and a live
+activity on the phone. That would contradict `ios/CLAUDE.md` directly.
+
+**If it stays unpaired:** recorded as **unmeasured, because the Watch was never paired within
+the workstream's window** — not as "assumed to work".
