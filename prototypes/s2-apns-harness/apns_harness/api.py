@@ -108,7 +108,8 @@ class Sender:
 
         For `la-*` types, `refresh_la_fields` (default on) injects a fresh
         `aps.timestamp` and, if `content-state.updatedAt` is a string, refreshes
-        it to now (numeric Unix epoch seconds) — same behaviour as the CLI.
+        it to now as a **number** (the epoch it's in is unresolved — see
+        `payloads.refresh_updated_at`) — same behaviour as the CLI.
         `headline`, when given,
         overwrites `aps.content-state.headline` (convenience for labelled ramps).
         """

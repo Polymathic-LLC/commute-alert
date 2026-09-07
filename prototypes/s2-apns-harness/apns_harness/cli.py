@@ -179,7 +179,7 @@ def cmd_send(args: argparse.Namespace) -> int:
         if inject_timestamp(payload):
             _eprint("  (injected aps.timestamp = now)")
         if not args.keep_updated_at and refresh_updated_at(payload):
-            _eprint("  (refreshed content-state.updatedAt = now, Unix epoch seconds)")
+            _eprint("  (refreshed content-state.updatedAt = now, as a number)")
         if args.dismissal_in is not None:
             payload["aps"]["dismissal-date"] = int(time.time()) + args.dismissal_in
         elif args.dismissal_date is not None:

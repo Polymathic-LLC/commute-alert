@@ -470,7 +470,8 @@ S2 is the send mechanism; S4 designs the experiment and owns the device.
    (snake_case key, then ISO string), so nothing S2 sent has been confirmed to
    render. S4's call, S4's device.
 4. **Which numeric epoch** for `updatedAt` shows the right wall-clock time
-   (1970 vs 2001 reference). E1b has the data; not a blocker.
+   (1970 vs 2001 reference) — S2 writes 1970, S4's script writes 2001.
+   **S4's E0 calibration settles it**; not a blocker. S2 holds 1970 until then.
 5. **Device-side confirmation done so far:** `alert` banner appeared; local
    Live Activity start works. No *pushed* Live Activity has been confirmed to
    render — the ones sent were all undecodable.

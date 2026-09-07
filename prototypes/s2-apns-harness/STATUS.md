@@ -46,6 +46,13 @@ Pre-send safety added this round: `payloads.check_fatal_shapes()` runs on every
 send, cannot be disabled, hard-raises on the two shapes proven fatal today
 (string in a `Date` field; snake_case keys). New fatal shapes append here.
 
+Wording sweep (orchestrator): every comment / docstring / error-message /
+README mention of `updatedAt` now says string-vs-number is settled and the
+epoch (1970 vs 2001) is OPEN pending E0 — prose was asserting 1970 as fact next
+to correct, epoch-agnostic code. Guard logic untouched (S4's `--preflight`
+depends on it). The pattern to hold: treat prose as claims needing the same
+evidence as a finding; flag an open question everywhere it's mentioned.
+
 ## Blocked-command log (background-session permission prompts)
 
 (none)

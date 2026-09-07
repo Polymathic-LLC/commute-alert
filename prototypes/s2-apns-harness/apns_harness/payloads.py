@@ -96,9 +96,10 @@ def check_fatal_shapes(payload: dict, push_type: PushType) -> None:
             if isinstance(cs.get(k), str):
                 raise PayloadError(
                     f"FATAL SHAPE: content-state.{k} is a string ({cs[k]!r}). It maps "
-                    "to a Swift `Date`; ActivityKit's push decoder needs a JSON number "
-                    "(Unix epoch seconds) and silently drops the entire push. "
-                    "See FINDINGS.md."
+                    "to a Swift `Date`; ActivityKit's push decoder needs a JSON "
+                    "number and silently drops the entire push otherwise. (Which "
+                    "epoch the number is in — 1970 vs 2001 reference — is still "
+                    "open; this guard only checks string-vs-number.) See FINDINGS.md."
                 )
         bad = _snake_keys(cs)
         if bad:
@@ -219,19 +220,21 @@ def inject_timestamp(payload: dict, *, now: int | None = None) -> bool:
 
 
 def refresh_updated_at(payload: dict, *, now: float | None = None) -> bool:
-    """Set `aps.content-state.updatedAt` to a fresh **numeric** Unix-epoch
-    timestamp (integer seconds since 1970). Returns True if it changed.
+    """Set `aps.content-state.updatedAt` to a fresh **number**. Returns True if
+    it changed.
 
-    `updatedAt` is a Swift `Date`. ActivityKit's push JSONDecoder requires a JSON
-    **number** for a `Date` — verified on device by S4's E1b: the ISO-8601-string
-    arm rendered NOTHING (one bad field discards the entire push, behind a
-    `200 OK`), both numeric arms rendered. Earlier code here wrote an ISO-8601
-    string on the mistaken belief that Apple DTS guidance allowed it; that was
-    wrong and cost an 8-hour measurement run (S4's E4).
+    What is SETTLED (S4's E1b, on device, one variable): a Swift `Date` in the
+    push content-state must be a JSON **number**, not a string — the ISO-8601
+    string arm rendered NOTHING (one bad field discards the entire push, behind
+    a `200 OK`); both numeric arms rendered. Earlier code here wrote an ISO-8601
+    string on a mistaken reading of Apple DTS guidance; that was wrong and cost
+    an 8-hour measurement run (S4's E4).
 
-    Epoch choice: seconds-since-1970, matching `aps.timestamp`. Whether a
-    different epoch (2001 reference) shows a more correct wall-clock time on
-    device is a smaller open question — see FINDINGS.md; E1b has the data.
+    What is OPEN: which epoch the number is in. This function writes
+    seconds-since-1970 (matching `aps.timestamp`); S4's `e1_pts_conditions.py`
+    writes seconds-since-2001. Both decode; at most one shows the right
+    wall-clock time. S4's E0 calibration settles it — do not change this
+    default before that result comes back. See FINDINGS.md.
 
     Only rewrites when the key is already present (any type). Absent => left
     absent (the field is `Int?`-style optional on S3's struct... actually
@@ -254,9 +257,10 @@ def example_payload(push_type_key: str, *, bundle_id: str = "<bundle-id>") -> di
     Live Activity examples omit `aps.timestamp`; the sender injects a fresh one
     (`inject_timestamp`) and refreshes `updatedAt` (`refresh_updated_at`).
 
-    `updatedAt` is a NUMBER (Unix epoch seconds) — ActivityKit's push decoder
-    rejects a string for a Swift `Date` and drops the whole push. The fixed
-    value here is refreshed to now on every send."""
+    `updatedAt` is a NUMBER, not a string — ActivityKit's push decoder rejects a
+    string for a Swift `Date` and drops the whole push (settled by S4's E1b).
+    Which epoch the number is in is still open (see `refresh_updated_at`); the
+    fixed value here is refreshed to now on every send."""
     cs = {
         "v": 1,
         "displayStatus": "delayed",
