@@ -16,6 +16,7 @@ use that topic and `apns-push-type: liveactivity`.
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -95,6 +96,22 @@ def validate(payload: dict, push_type: PushType) -> list[str]:
         cs_bytes = _content_state_bytes(payload)
         if cs_bytes > MAX_PAYLOAD_BYTES:
             raise PayloadError(f"content-state is {cs_bytes} bytes; limit {MAX_PAYLOAD_BYTES}")
+        cs = aps.get("content-state")
+        if isinstance(cs, dict):
+            for k in DATE_CONTENT_STATE_KEYS:
+                if isinstance(cs.get(k), str):
+                    raise PayloadError(
+                        f"content-state.{k} is a string ({cs[k]!r}). It maps to a "
+                        "Swift `Date`; ActivityKit's push decoder needs a JSON "
+                        "number (Unix epoch seconds) and silently drops the "
+                        "entire push otherwise. See FINDINGS.md."
+                    )
+            for k, val in cs.items():
+                if k not in DATE_CONTENT_STATE_KEYS and isinstance(val, str) and _ISO8601_RE.match(val):
+                    warnings.append(
+                        f"content-state.{k} looks like a datetime string ({val!r}) — "
+                        "if it maps to a Swift `Date`, send it as a number instead"
+                    )
         if event == "start":
             if "attributes-type" not in aps or "attributes" not in aps:
                 raise PayloadError(
@@ -126,6 +143,15 @@ S3_ATTRIBUTES_TYPE = "CommuteActivityAttributes"
 S3_ATTRIBUTES_KEYS = ("routeName", "stopName")
 S3_CONTENT_STATE_KEYS = ("v", "displayStatus", "headline", "minutesToDeparture", "updatedAt")
 
+# content-state keys that are a Swift `Date`. ActivityKit's push JSONDecoder
+# requires a JSON **number** for these (verified on device by S4's E1b — the
+# ISO-8601-string arm rendered nothing, both numeric arms rendered). A string
+# here makes the WHOLE push undecodable, silently, behind a 200 OK. So the
+# harness rejects a string in one of these fields.
+DATE_CONTENT_STATE_KEYS = ("updatedAt",)
+
+_ISO8601_RE = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?")
+
 
 def inject_timestamp(payload: dict, *, now: int | None = None) -> bool:
     """Set `aps.timestamp` to now if absent. Returns True if it changed.
@@ -142,19 +168,28 @@ def inject_timestamp(payload: dict, *, now: int | None = None) -> bool:
 
 
 def refresh_updated_at(payload: dict, *, now: float | None = None) -> bool:
-    """If `aps.content-state.updatedAt` is a string, replace it with a fresh
-    ISO-8601 UTC timestamp. Returns True if it changed.
+    """Set `aps.content-state.updatedAt` to a fresh **numeric** Unix-epoch
+    timestamp (integer seconds since 1970). Returns True if it changed.
 
-    `updatedAt` is a Swift `Date`. ActivityKit's push JSONDecoder accepts ISO-8601
-    strings for `Date` (per Apple DTS guidance); the committed example carries a
-    fixed one so the caption on-device isn't years stale. NOTE: the exact
-    date-decoding strategy is unverified for this struct — see FINDINGS.md.
+    `updatedAt` is a Swift `Date`. ActivityKit's push JSONDecoder requires a JSON
+    **number** for a `Date` — verified on device by S4's E1b: the ISO-8601-string
+    arm rendered NOTHING (one bad field discards the entire push, behind a
+    `200 OK`), both numeric arms rendered. Earlier code here wrote an ISO-8601
+    string on the mistaken belief that Apple DTS guidance allowed it; that was
+    wrong and cost an 8-hour measurement run (S4's E4).
+
+    Epoch choice: seconds-since-1970, matching `aps.timestamp`. Whether a
+    different epoch (2001 reference) shows a more correct wall-clock time on
+    device is a smaller open question — see FINDINGS.md; E1b has the data.
+
+    Only rewrites when the key is already present (any type). Absent => left
+    absent (the field is `Int?`-style optional on S3's struct... actually
+    `updatedAt` is non-optional there, so the example payloads always carry it).
     """
     cs = payload.get("aps", {}).get("content-state")
-    if not isinstance(cs, dict) or not isinstance(cs.get("updatedAt"), str):
+    if not isinstance(cs, dict) or "updatedAt" not in cs:
         return False
-    t = time.gmtime(now) if now is not None else time.gmtime()
-    cs["updatedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", t)
+    cs["updatedAt"] = int(now if now is not None else time.time())
     return True
 
 
@@ -166,13 +201,17 @@ def example_payload(push_type_key: str, *, bundle_id: str = "<bundle-id>") -> di
     are S3's real ones so push-to-start / update actually decode on-device.
 
     Live Activity examples omit `aps.timestamp`; the sender injects a fresh one
-    (`inject_timestamp`) and refreshes `updatedAt` (`refresh_updated_at`)."""
+    (`inject_timestamp`) and refreshes `updatedAt` (`refresh_updated_at`).
+
+    `updatedAt` is a NUMBER (Unix epoch seconds) — ActivityKit's push decoder
+    rejects a string for a Swift `Date` and drops the whole push. The fixed
+    value here is refreshed to now on every send."""
     cs = {
         "v": 1,
         "displayStatus": "delayed",
         "headline": "Next inbound train +6 min",
         "minutesToDeparture": 6,
-        "updatedAt": "2026-01-01T00:00:00Z",
+        "updatedAt": 1_735_689_600,  # 2025-01-01T00:00:00Z; refreshed to now at send time
     }
     if push_type_key == "la-update":
         return {"aps": {"event": "update", "content-state": cs}}

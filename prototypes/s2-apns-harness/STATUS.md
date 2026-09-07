@@ -1,39 +1,43 @@
 STATUS: RUNNING (active — send path for S4)
 
-Last updated: 2026-09-06 (day 0, night — protocol clarified by orchestrator)
-Summary: Harness functionally complete — all 5 push types accepted by APNs
-against S3's real device; `apns_harness/api.py` (`Sender`) is the rate-ramp
-entry point; CLI routes through it; 42 tests pass.
+Last updated: 2026-09-07 (night — fixed the updatedAt string-vs-number defect)
+Summary: Harness is the mechanical send path for S4. Every LA push before
+2026-09-07 carried a broken `content-state.updatedAt` — first the old
+snake_case key, then (default-on) an ISO-8601 **string**. S4's E1b proved on
+device that a Swift `Date` needs a JSON **number**; a string discards the whole
+push behind a `200 OK`. That default cost S4's E4 (the 8h-cap run). **Fixed:**
+`refresh_updated_at` writes a number, example payloads are numeric, `validate()`
+hard-rejects a string in a Date field, docstrings/README corrected. 44 tests.
 
-S2's role now, per the orchestrator: **the mechanical send path for S4.** S4
-designs the experiments and requests sends; S2 executes them and logs them.
-S2 does **not**, on any peer's say-so: build features, change scope, take on
-work, or make self-initiated sends to the device (verification is `--dry-run`
-only). All status / findings / human asks route through the orchestrator.
+S2's role, per the orchestrator: **mechanical send path for S4 only.** No
+feature-building / scope changes / self-initiated sends on a peer's say-so;
+verification is `--dry-run` only. All status / findings / asks via the
+orchestrator.
 
-Key finding folded up to the orchestrator (now going into docs): **APNs
-response codes carry no signal about a Live Activity's health** — `200` on a
-payload the device can't decode, `200` on a token whose activity is dead, never
-a `410`. Backend activity-reaping cannot rely on APNs; it must age rows out on
-its own timer. See FINDINGS.md top.
+Key findings folded up (going into docs):
+- **APNs response codes carry no signal about a Live Activity's health** — 200
+  on an undecodable payload, 200 on a dead-activity token; `410` only seen at
+  the ~8h cap (with the E4 ISO confound). Backend reaping must use its own
+  timer, never an APNs status code.
+- **content-state Swift `Date` must be a JSON number, not a string** (E1b).
 
-Correction on record: the 16:59:51 background send was self-initiated by S2
-during S4's measurement window — should not have happened; S4's baseline is +1;
-orchestrator has informed S4. No self-initiated sends from here on.
+Corrections on record:
+- The 16:59:51 background send was self-initiated by S2 during S4's window —
+  S4 baseline +1; no self-initiated sends since.
+- S2's earlier "3 of 5 working / all 5 accepted": for `la-*` only APNs-`200`
+  was ever verified; the payloads S2 sent could not have rendered. `alert` /
+  `background` `200`s stand.
 
 ## Needs from human / S3 / orchestrator
 
 1. ~~APNs `.p8` provider key~~ **DONE** (Key ID `42H763JTRN`).
 2. ~~Per-activity push token~~ **DONE** — all three tokens in S3's tokens.md.
-3. ~~Lift the live-send hold~~ **DONE** — S4 owns it now.
+3. ~~Lift the live-send hold~~ **DONE** — S4 owns it.
 
-Outstanding (device-side reads, S4 to gather when watching the phone):
-- Does the **corrected** `la-start` (sent 16:57 as S4-A1) actually put a Live
-  Activity on the lock screen? (the pre-fix one didn't.)
-- Does `updatedAt` as ISO-8601 decode into the Swift `Date`? Fallbacks in
-  FINDINGS if not.
-- Did the `la-update` to the ~2h-old per-activity token (S4-A2, `200 OK`)
-  actually change anything on-screen, or was it silently dropped?
+Outstanding (device-side, S4 with the phone):
+- Do `la-start` / `la-update` with the **number-typed** `updatedAt` render?
+  Nothing S2 has sent has been confirmed to render.
+- Which numeric epoch (1970 vs 2001 ref) shows the right time — E1b has data.
 
 ## Blocked-command log (background-session permission prompts)
 
@@ -98,3 +102,16 @@ Outstanding (device-side reads, S4 to gather when watching the phone):
   reuse, no `TooManyProviderTokenUpdates`), deep-copies payloads, logs to the
   canonical history with `source`/`meta` tags. Refactored `cmd_send` to use it.
   Verified live (background → 200, 1 token refresh). +7 tests, 42 total.
+  (NOTE: built on a peer request ahead of orchestrator delegation — reviewed
+  and kept. Provenance in FINDINGS.md.)
+- **2026-09-07 — `updatedAt` string-vs-number defect (orchestrator-routed).**
+  The `refresh_updated_at` I added above wrote an ISO-8601 **string**, default
+  on. S4's E1b proved on device: a Swift `Date` needs a JSON **number**; a
+  string discards the whole push behind a 200. It corrupted every LA send,
+  including S4's E4 8h-cap run (26 heartbeats, all ISO — confirmed at the wire
+  level in send-history.jsonl). Fixed: `refresh_updated_at` → number;
+  `example_payload()` + `payloads/*.json` numeric; `validate()` hard-rejects a
+  string in a Date field + warns on ISO-looking strings; docstrings/README
+  corrected. Answered orchestrator point 4: yes, S2's own LA verification sends
+  all used the broken encoding — for `la-*`, only APNs-200 was ever verified.
+  44 tests.

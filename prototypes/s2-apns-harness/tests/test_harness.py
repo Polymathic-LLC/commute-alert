@@ -144,16 +144,40 @@ def test_la_example_payloads_match_s3_struct_keys():
         cs = payloads.example_payload(key)["aps"]["content-state"]
         assert set(cs).issubset(set(payloads.S3_CONTENT_STATE_KEYS)), (key, set(cs))
         assert "displayStatus" in cs and "display_status" not in cs
-        assert "updatedAt" in cs and "updated_at" not in cs
+        # updatedAt is a Swift Date -> MUST be a number, never a string
+        assert isinstance(cs["updatedAt"], int), (key, cs["updatedAt"])
 
 
-def test_refresh_updated_at_only_when_string():
+def test_refresh_updated_at_writes_a_number():
     p = {"aps": {"event": "update", "content-state": {"updatedAt": "2020-01-01T00:00:00Z"}}}
-    assert payloads.refresh_updated_at(p, now=0) is True
-    assert p["aps"]["content-state"]["updatedAt"] == "1970-01-01T00:00:00Z"
-    p2 = {"aps": {"event": "update", "content-state": {"updatedAt": 12345}}}
-    assert payloads.refresh_updated_at(p2) is False
-    assert p2["aps"]["content-state"]["updatedAt"] == 12345
+    assert payloads.refresh_updated_at(p, now=1_700_000_000) is True
+    assert p["aps"]["content-state"]["updatedAt"] == 1_700_000_000  # number, not a string
+    # rewrites regardless of prior type, but only when the key is present
+    p2 = {"aps": {"event": "update", "content-state": {"updatedAt": 1}}}
+    assert payloads.refresh_updated_at(p2, now=42) is True
+    assert p2["aps"]["content-state"]["updatedAt"] == 42
+    p3 = {"aps": {"event": "update", "content-state": {"v": 1}}}
+    assert payloads.refresh_updated_at(p3) is False
+
+
+def test_validate_rejects_string_date_field():
+    p = {"aps": {"event": "update", "timestamp": 1,
+                 "content-state": {"v": 1, "displayStatus": "on_time",
+                                   "headline": "x", "updatedAt": "2026-01-01T00:00:00Z"}}}
+    with pytest.raises(payloads.PayloadError) as exc:
+        payloads.validate(p, PUSH_TYPES["la-update"])
+    assert "updatedAt" in str(exc.value) and "number" in str(exc.value)
+    # numeric updatedAt is fine
+    p["aps"]["content-state"]["updatedAt"] = 1_700_000_000
+    payloads.validate(p, PUSH_TYPES["la-update"])
+
+
+def test_validate_warns_on_other_iso_datetime_string():
+    p = {"aps": {"event": "update", "timestamp": 1,
+                 "content-state": {"v": 1, "displayStatus": "on_time", "headline": "x",
+                                   "updatedAt": 1_700_000_000, "someOtherTime": "2026-01-01T09:00:00Z"}}}
+    warnings = payloads.validate(p, PUSH_TYPES["la-update"])
+    assert any("someOtherTime" in w and "number" in w for w in warnings)
 
 
 def test_liveactivity_requires_event():

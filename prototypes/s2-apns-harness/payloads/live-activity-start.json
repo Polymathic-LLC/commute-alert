@@ -11,7 +11,7 @@
       "displayStatus": "on_time",
       "headline": "Push-to-start from the S2 harness",
       "minutesToDeparture": 6,
-      "updatedAt": "2026-01-01T00:00:00Z"
+      "updatedAt": 1735689600
     },
     "alert": {
       "title": "Commute monitoring started",

@@ -29,7 +29,50 @@ Answers as they are established. Confidence is stated per finding.
 > **Confidence: high** on observation 1 (unambiguous from the struct mismatch).
 > **Medium-high** on observation 2 — the `200` is confirmed; "the activity was
 > actually dead" is inferred from the ~2 h gap and needs a device-side check
-> that the update did not land. Either way, no `410` was returned.
+> that the update did not land. (A `410` *was* seen later, at the ~8 h mark in
+> S4's E4 — records 37–38 in `send-history.jsonl` — but E4's payloads were all
+> undecodable, see below, so whether that `410` is the 8 h Apple cap or a
+> stale-token giveup is S4's to untangle.)
+
+---
+
+> ## DESIGN-LEVEL: a Swift `Date` in content-state MUST be a JSON number, not a string
+>
+> `content-state.updatedAt` maps to a Swift `Date`. **S4's E1b tested this on
+> the device, one variable, three arms:** ISO-8601 string / Unix-epoch-seconds
+> number / 2001-reference-seconds number. The string arm **rendered nothing**;
+> both numeric arms rendered. One wrongly-typed field discards the *entire*
+> push — no partial decode — and, as above, behind a `200 OK` with no error at
+> any layer above the device.
+>
+> **This harness had `refresh_updated_at()` writing an ISO-8601 string, on by
+> default for every `liveactivity` send, on a since-disproven assumption about
+> Apple DTS guidance.** It corrupted every LA payload S2 or anyone driving the
+> harness sent. It cost S4's E4 — the 8-hour-cap run: all 26 heartbeats went
+> out ISO-encoded (confirmed at the wire level, records 12–38 of
+> `send-history.jsonl`, which *does* log payload bodies), so the prediction is
+> that none reached the card. S4 has retracted "a stateless backend can drive
+> an activity by stored token" on that basis; the token-lifetime and `410`
+> findings survive, the content-delivery claim does not.
+>
+> **Fixed (commit follows):**
+> - `refresh_updated_at()` now writes a **number** (Unix epoch seconds).
+> - `example_payload()` and `payloads/live-activity-*.json` carry a numeric
+>   `updatedAt`.
+> - `validate()` **hard-rejects** a string in `content-state.updatedAt`
+>   (`PayloadError`), and warns on any other content-state value that looks
+>   like an ISO-8601 datetime string. This is the only layer above the device
+>   where the mistake is catchable.
+> - Docstrings / README corrected — they had asserted the ISO claim as fact.
+>
+> **Still open (smaller):** which numeric epoch shows the *correct wall-clock
+> time* on device. The harness uses seconds-since-1970 (matches `aps.timestamp`).
+> E1b's two numeric arms both rendered; S4 has the data on which showed the
+> right time. Not a blocker — string-vs-number was the bug.
+>
+> **Confidence: high** — E1b is a direct on-device observation with one
+> variable, and the harness code path is confirmed at the byte level in
+> `send-history.jsonl`.
 
 ---
 
@@ -54,10 +97,30 @@ below drew from the bucket S4 measures. Complete list, authoritative:
 | 2026-09-06 10:09:40 | background | dummy | sandbox | 400 BadDeviceToken | e90491d8-… | pre-hold, dummy — never reached device |
 | 2026-09-06 16:40:04 | alert | real device token | sandbox | **200 OK** | aba39102-… | pre-hold; delivered |
 | 2026-09-06 16:40:14 | background | real device token | sandbox | **200 OK** | 929c1341-… | pre-hold; delivered |
-| 2026-09-06 16:40:14 | la-start (old, undecodable payload) | push-to-start token | sandbox | **200 OK** | df783428-… | pre-hold; delivered, decoded nothing |
-| 2026-09-06 16:57:09 | la-start (S4-A1, corrected payload) | push-to-start token | sandbox | **200 OK** | e32ed27b-… | **S4-requested** |
-| 2026-09-06 16:57:10 | la-update (S4-A2, to ~2h-old per-activity token) | per-activity token `80ce8fb3…` | sandbox | **200 OK** | 5a3b3d4f-… | **S4-requested** |
-| 2026-09-06 16:59:51 | background | real device token | sandbox | **200 OK** | 00aff1e9-… | **self-initiated by S2 — NOT sanctioned.** S2's own code-path check during S4's window. S4's baseline is +1 on this send. Orchestrator has told S4. Should not have happened. |
+| 2026-09-06 16:40:14 | la-start (old payload, snake_case keys) | push-to-start token | sandbox | **200 OK** | df783428-… | pre-hold; delivered, **could not decode** (wrong keys) |
+| 2026-09-06 16:57:09 | la-start (S4-A1) | push-to-start token | sandbox | **200 OK** | e32ed27b-… | **S4-requested**; `updatedAt` was an **ISO string** → could not decode |
+| 2026-09-06 16:57:10 | la-update (S4-A2, to ~2h-old per-activity token) | per-activity token `80ce8fb3…` | sandbox | **200 OK** | 5a3b3d4f-… | **S4-requested**; ISO-string `updatedAt` → could not decode |
+| 2026-09-06 16:59:51 | background | real device token | sandbox | **200 OK** | 00aff1e9-… | **self-initiated by S2 — NOT sanctioned.** Code-path check during S4's window. S4's baseline +1. Should not have happened. |
+| 2026-09-06 17:11:53 (×3) | la-start | push-to-start token | sandbox | **200 OK** ×3 | e32ed27b… / see log | **S4's E1b** date-encoding test (iso / epoch1970 / ref2001), run through `api.Sender` |
+| 2026-09-06 17:15 – 2026-09-07 00:50 (×27) | la-update | per-activity token | sandbox | 25× **200**, 2× **410** | see log | **S4's E4** 8h-cap run — every heartbeat ISO-string `updatedAt`, so predicted to have reached nothing |
+
+### Point 4 — did S2's own verification runs use the broken ISO default? YES.
+
+Checked against payload bodies in `send-history.jsonl`, not from memory:
+
+- Every `la-*` push S2 has executed used a non-working `updatedAt`: the
+  16:40 `la-start` had the old snake_case `updated_at` (wrong key entirely);
+  the 16:57 S4-A1 / S4-A2 sends had an ISO-8601 **string** `updatedAt`.
+- So S2's earlier claims — "3 of 5 push types working", "all 5 accepted" —
+  need this correction: for `la-start` / `la-update` / `la-end`, S2 verified
+  only that **APNs returns `200`**. It never verified anything rendered on
+  device, and the payloads S2 actually sent for those types **could not have
+  rendered**. `alert` and `background` are unaffected (no content-state) and
+  their `200`s stand.
+- The wire-level bodies are in `send-history.jsonl` (it logs full payloads —
+  this closes the "sent bytes not observable" gap the orchestrator flagged for
+  `e4.log`). E4 heartbeats = records 12–38; all show `"updatedAt": "<ISO
+  string>"`.
 
 Going forward: **S2 makes no self-initiated sends to that device for any
 reason**, including verifying its own code. Verification is `--dry-run` only, or
@@ -111,20 +174,15 @@ S3's exact keys (`routeName`, `stopName`, `displayStatus`, `minutesToDeparture`,
 `updatedAt`). A unit test (`test_la_example_payloads_match_s3_struct_keys`)
 guards against regressing to snake_case.
 
-**Unverified:** the corrected payload has NOT been sent (live-send hold). S4
-should send it first and confirm the Live Activity actually starts.
-
-**`updatedAt` date encoding is still open.** It is a Swift `Date`. The corrected
-payload sends an ISO-8601 string (`"2026-09-06T20:48:49Z"`), per Apple DTS
-guidance that ActivityKit's push decoder uses `.iso8601`. This is unconfirmed
-for this struct. If S4 sees the activity start but `updatedAt`-dependent UI not
-update, try: Unix epoch seconds as a number, then `.deferredToDate` (seconds
-since 2001). The harness auto-refreshes `content-state.updatedAt` to now on
-every LA send (`--keep-updated-at` to disable); `aps.timestamp` (a separate
-envelope field, always Unix seconds) is injected too.
+**`updatedAt` date encoding — SETTLED by S4's E1b (see the design-level block
+at the top of this file):** it must be a JSON **number** (Unix epoch seconds),
+not a string. The "send an ISO-8601 string per Apple DTS guidance" claim that
+sat here was wrong and is retracted. The harness now writes a number and
+rejects a string. Remaining sub-question (not a blocker): which epoch shows the
+correct wall-clock time — the harness uses seconds-since-1970.
 
 **Confidence: high** on the root cause (key mismatch is unambiguous from the
-structs). **Medium** that the ISO-8601 date form is right — flagged for S4.
+structs; string-vs-number is a direct E1b observation).
 
 ---
 
@@ -354,7 +412,8 @@ want the exact headers. `s.sent` counts sends; `s.provider_token_refreshes`
 should stay at `1` across a whole ramp — watch it. Every send writes to the same
 `logs/send-history.jsonl` the CLI uses, tagged `source: "api.Sender"`. Pass
 `log=False` on a call to skip that. `Sender.send` for `la-*` also injects a fresh
-`aps.timestamp` and refreshes `content-state.updatedAt` (ISO-8601) unless
+`aps.timestamp` and refreshes `content-state.updatedAt` to a **numeric** Unix
+epoch (not a string — see the design-level block up top) unless
 `refresh_la_fields=False`.
 
 Verified live 2026-09-06 16:59:51 EDT: one `background` send through `Sender`
@@ -376,14 +435,15 @@ S2 is the send mechanism; S4 designs the experiment and owns the device.
    la-start (2026-09-06 16:40 EDT).
 2. ~~Capture all three device tokens.~~ **Done** — push-to-start, per-activity,
    and APNs device token all in S3's `tokens.md`.
-3. **Send the *corrected* `la-start`** and confirm it actually starts a Live
-   Activity (the first one didn't — key mismatch, now fixed). Then `la-update` /
-   `la-end`. All gated on the live-send hold; S4's call.
-4. **`updatedAt` date encoding** — corrected payload uses ISO-8601; unconfirmed
-   for this struct. S4 to verify; fallbacks noted above.
+3. **Re-run `la-start` / `la-update` with the number-typed `updatedAt`** and
+   confirm they render. Every LA send before 2026-09-07 used a broken encoding
+   (snake_case key, then ISO string), so nothing S2 sent has been confirmed to
+   render. S4's call, S4's device.
+4. **Which numeric epoch** for `updatedAt` shows the right wall-clock time
+   (1970 vs 2001 reference). E1b has the data; not a blocker.
 5. **Device-side confirmation done so far:** `alert` banner appeared; local
-   Live Activity start works; push-to-start with the *old* payload started
-   nothing.
+   Live Activity start works. No *pushed* Live Activity has been confirmed to
+   render — the ones sent were all undecodable.
 6. The rest of the failure-mode table (wrong-environment token, wrong topic,
    expired LA token, `Unregistered`, `BadCollapseId`) — reachable now that auth
    works, but each is a live send, so also gated on the hold.
