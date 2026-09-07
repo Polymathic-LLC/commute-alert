@@ -38,9 +38,11 @@ looked at the no-push card yesterday around 17:20 and saw real text under the lo
 
 If you genuinely don't remember, say so — a guess here is worse than nothing.
 
-> Why A4 matters: 26 pushes to that activity returned success from Apple's servers over eight
-> hours. Whether any of them actually reached the screen is unknown. If the card still said
-> its original text, then none of them ever landed, and every "success" was fictional.
+> Why A4 matters: 27 pushes went to that activity over eight hours, and 25 of them came back
+> from Apple's servers as successes. Whether a single one reached the screen is unknown — and
+> we now have good reason to think none did, because those pushes carried a date format we
+> later proved the phone silently rejects. If the card still showed its original text, that is
+> confirmed, and every one of those "successes" was fictional.
 
 ---
 

@@ -162,7 +162,7 @@ local test and fail in the field. This belongs in `push-flow.md`.
 | **hb=026** | **2026-09-07 00:45:00** | **8 h 00 m** | **`410 ExpiredToken`** |
 | hb=027 | 2026-09-07 00:50:00 | 8 h 05 m | `410 ExpiredToken` |
 
-26 consecutive `200`s, then `410`, then `410` again on confirmation. No degradation, no
+25 consecutive `200`s, then `410`, then `410` again on confirmation. No degradation, no
 partial state, no warning.
 
 **The 410 response body carries `timestamp: 1788756241000` — 2026-09-07 00:44:01 EDT.** That is
@@ -441,7 +441,7 @@ cards still there".
 
 ## F9 — E4's heartbeats carried the one encoding F6 proved fatal. My error, caught before the confirming observation arrived.
 
-**What happened.** Every one of E4's 26 heartbeats sent `content-state.updatedAt` as an
+**What happened.** All 27 of E4's heartbeats sent `content-state.updatedAt` as an
 **ISO-8601 string**:
 
 ```
@@ -456,7 +456,7 @@ default, which rewrites `updatedAt` to a fresh ISO-8601 string on every send. Si
 F6 established that an ISO-8601 string is precisely what ActivityKit's push decoder cannot
 decode into a Swift `Date`, and that one bad field discards the entire push.
 
-**So the strong prediction is that none of the 26 heartbeats ever reached the card.** They
+**So the strong prediction is that none of them ever reached the card.** They
 returned 26 `200 OK`s regardless. This is a fourth independent instance of F6's mechanism, and
 this time I walked into it myself while holding the finding that describes it.
 
@@ -494,8 +494,21 @@ from a stateless process — not answered by this run.**
 re-run. `e4_cap.py` is fixed (numeric `updatedAt`, `refresh_la_fields=False`) so a repeat is
 correct if one is ever wanted.
 
-**Confidence: high** that the heartbeats were undecodable — the sent payloads are logged, and
-F6's split is unambiguous. The prediction is registered here **before** A4 is answered.
+**Confidence: high** that the heartbeats were undecodable, and the basis is stated precisely
+because this finding is itself a retraction:
+
+- **The bodies were recorded, not inferred from code.** S2's `logs/send-history.jsonl` logs the
+  post-mutation payload for every send. All **27** E4 sends have a recorded body, and **27 of
+  27** carry `updatedAt` as an ISO-8601 string; zero carry a number. Verified by
+  `harness/check_e4.py`, which is committed so the check is repeatable.
+- **What that is not:** a packet capture. It is the sender's own record of the body it handed
+  to the HTTP client, taken at send time. Short of a wire trace, it is the strongest available
+  evidence, and it is a category better than reading the code path.
+- **My own `logs/e4.log` carries status codes only** and no payload bodies. An earlier revision
+  of this finding said "the sent payloads are logged" without naming the file, which invited
+  exactly the wrong one to be checked.
+
+The prediction is registered here **before** A4 is answered.
 
 ### A landmine for anyone else using S2's harness
 
