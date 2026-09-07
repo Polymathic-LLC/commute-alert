@@ -143,6 +143,26 @@ def preflight() -> int:
         except Exception as exc:
             print(f"  caught      {label}  ({type(exc).__name__})")
 
+    # The guard must stay EPOCH-AGNOSTIC. It checks string-vs-number, and F10
+    # records which epoch ActivityKit reads as open; S2 sends 1970, S4 sends
+    # 2001-reference, and both must pass. A guard that quietly acquired a
+    # preference would silently break one sender — and the risk is real, because
+    # this file's docstrings and error messages sit inches from its logic, so an
+    # author correcting prose about epochs is one keystroke from encoding one.
+    # Control contributed by the orchestrator's independent check.
+    print("\nGuard stays epoch-agnostic (F10 is open; both senders must pass):")
+    for label, updated_at in (("2001-reference (S4)", unix - APPLE_EPOCH_OFFSET),
+                              ("1970 epoch (S2 default)", unix)):
+        body = payload_for("S4-E1-preflight", unix)
+        body["aps"]["content-state"]["updatedAt"] = updated_at
+        try:
+            s2_payloads.check_fatal_shapes(body, s2_payloads.PUSH_TYPES["la-start"])
+            print(f"  passes      {label}")
+        except Exception as exc:
+            ok = False
+            print(f"  BLOCKED     {label}  <-- guard has acquired an epoch preference")
+            print(f"              {type(exc).__name__}: {exc}")
+
     print("\nPREFLIGHT:", "OK — Part C is safe to run" if ok else "FAILED — do not run Part C")
     return 0 if ok else 1
 
