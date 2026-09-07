@@ -42,6 +42,7 @@ from . import config, history
 from .client import ApnsClient, ApnsResponse, BuiltRequest
 from .payloads import (
     PUSH_TYPES,
+    check_fatal_shapes,
     inject_timestamp,
     refresh_updated_at,
     validate,
@@ -159,6 +160,10 @@ class Sender:
             if dismissal_in is not None:
                 payload["aps"]["dismissal-date"] = int(time.time()) + dismissal_in
 
+        # Known-fatal shapes (ISO string in a Date field, snake_case keys) are
+        # invisible above the device and each cost a measurement today — checked
+        # on EVERY send, even when full validation is turned off.
+        check_fatal_shapes(payload, push_type)
         if validate_payload:
             validate(payload, push_type)  # raises PayloadError
 

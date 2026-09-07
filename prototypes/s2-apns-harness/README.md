@@ -100,7 +100,13 @@ push decoder does not convert snake_case and rejects missing non-optional keys �
 a mismatch means APNs returns 200 and iOS silently starts/updates nothing.
 `updatedAt` maps to a Swift `Date`: it **must be a JSON number** (Unix epoch
 seconds), not a string — S4's E1b showed on device that a string discards the
-whole push behind a `200 OK`. The harness's validator rejects a string there.
+whole push behind a `200 OK`. (Which epoch — 1970 vs 2001 reference — shows the
+right *time* is still open pending S4's E0; the harness uses 1970.)
+
+`payloads.check_fatal_shapes()` runs on **every** send and cannot be disabled
+(even `validate_payload=False`): it hard-rejects the shapes already proven to
+make an LA push silently undecodable — a string in a `Date` field, and
+snake_case keys against S3's camelCase structs.
 
 ## Library use (rate ramps, e.g. S4)
 

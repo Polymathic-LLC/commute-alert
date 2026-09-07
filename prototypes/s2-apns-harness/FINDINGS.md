@@ -65,14 +65,26 @@ Answers as they are established. Confidence is stated per finding.
 >   where the mistake is catchable.
 > - Docstrings / README corrected — they had asserted the ISO claim as fact.
 >
-> **Still open (smaller):** which numeric epoch shows the *correct wall-clock
-> time* on device. The harness uses seconds-since-1970 (matches `aps.timestamp`).
-> E1b's two numeric arms both rendered; S4 has the data on which showed the
-> right time. Not a blocker — string-vs-number was the bug.
+> **Still open (smaller) — and S2 and S4 have picked different answers:** which
+> numeric epoch shows the *correct wall-clock time* on device.
+>   - **S2's harness writes seconds-since-1970** (`int(time.time())`, matches
+>     `aps.timestamp`).
+>   - **S4's `e1_pts_conditions.py` writes seconds-since-2001** (`unix -
+>     APPLE_EPOCH_OFFSET`).
+>   Both render (E1b); at most one shows the right date. If ActivityKit decodes a
+>   bare number as `secondsSinceReferenceDate`, a 1970 value lands ~2057 — and
+>   S4's runbook lists "a date in 2057" as an expected result for one arm, which
+>   points at 1970 being wrong, but that is a hint in a runbook, not a
+>   measurement. **S4's E0 calibration reads the decoded value off the device
+>   and settles this.** S2 is deliberately NOT changing its default on a guess —
+>   the docstring keeps the epoch flagged as unresolved; when E0 reports, the
+>   orchestrator brings the result back and S2 aligns. Guessing now just risks
+>   the same silent-wrongness one layer over (renders, shows nonsense, nobody
+>   notices).
 >
-> **Confidence: high** — E1b is a direct on-device observation with one
-> variable, and the harness code path is confirmed at the byte level in
-> `send-history.jsonl`.
+> **Confidence: high** on string-vs-number (E1b, one variable, on device;
+> harness code path confirmed at the byte level in `send-history.jsonl`).
+> **Unresolved** on which epoch — pending E0.
 
 ---
 
@@ -84,6 +96,23 @@ Answers as they are established. Confidence is stated per finding.
 > `DeviceTokenNotForTopic` at all until the JWT is accepted.
 
 ---
+
+## Pre-send fatal-shape sweep (`payloads.check_fatal_shapes`)
+
+Both failures that bit us today — an ISO-8601 string in a `Date` field, and
+snake_case keys against a camelCase `ContentState` — are invisible at every
+layer above the device: APNs returns `200`, no error anywhere, nothing renders.
+So the harness now runs a dedicated check for exactly those shapes on **every**
+send, and it **cannot be turned off**: `api.Sender` calls `check_fatal_shapes()`
+even when `validate_payload=False`, and the CLI runs it via `validate()`. It
+raises `PayloadError` (never a warning) on:
+
+1. a string in any `DATE_CONTENT_STATE_KEYS` field (currently `updatedAt`);
+2. any `_` in a `content-state` or `attributes` key.
+
+New fatal shapes get added here as they are discovered, so every later send is
+swept against the full accumulated list. `validate()` additionally *warns* on
+other datetime-looking strings and on content-state keys outside S3's struct.
 
 ## Every push S2 has sent to S3's device — for S4's baseline accounting
 

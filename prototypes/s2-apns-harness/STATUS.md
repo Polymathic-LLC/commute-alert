@@ -37,7 +37,14 @@ Corrections on record:
 Outstanding (device-side, S4 with the phone):
 - Do `la-start` / `la-update` with the **number-typed** `updatedAt` render?
   Nothing S2 has sent has been confirmed to render.
-- Which numeric epoch (1970 vs 2001 ref) shows the right time — E1b has data.
+- Which numeric epoch for `updatedAt` — **S2 writes 1970, S4's script writes
+  2001-reference.** They diverge; S4's E0 calibration settles it. S2 keeps 1970
+  flagged as unresolved and aligns when E0 reports (orchestrator relays). Not
+  changing it on a guess.
+
+Pre-send safety added this round: `payloads.check_fatal_shapes()` runs on every
+send, cannot be disabled, hard-raises on the two shapes proven fatal today
+(string in a `Date` field; snake_case keys). New fatal shapes append here.
 
 ## Blocked-command log (background-session permission prompts)
 

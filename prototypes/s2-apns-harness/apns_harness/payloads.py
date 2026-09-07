@@ -68,6 +68,57 @@ def _content_state_bytes(payload: dict) -> int:
     return len(json.dumps(cs).encode()) if cs is not None else 0
 
 
+def check_fatal_shapes(payload: dict, push_type: PushType) -> None:
+    """Raise `PayloadError` on any payload shape ALREADY PROVEN to make a Live
+    Activity push undecodable on device — the failures that are invisible at
+    every layer above the device, so this is the only place to catch them.
+
+    Kept separate from `validate()` and run unconditionally by `api.Sender`
+    (even when `validate_payload=False`), so no send path can skip it.
+
+    Fatal shapes established so far (each cost a real measurement today):
+    1. An ISO-8601 **string** in a `Date`-typed content-state field. ActivityKit
+       needs a JSON number; a string discards the whole push. (S4 E1b.)
+    2. **snake_case keys** in `content-state` / `attributes`. S3's ContentState /
+       Attributes structs are camelCase; ActivityKit's decoder does not convert,
+       and a missing non-optional key fails the whole decode. (this morning.)
+    """
+    aps = payload.get("aps")
+    if not isinstance(aps, dict) or push_type.topic_kind != "liveactivity":
+        return
+
+    def _snake_keys(d: dict) -> list[str]:
+        return [k for k in d if isinstance(k, str) and "_" in k]
+
+    cs = aps.get("content-state")
+    if isinstance(cs, dict):
+        for k in DATE_CONTENT_STATE_KEYS:
+            if isinstance(cs.get(k), str):
+                raise PayloadError(
+                    f"FATAL SHAPE: content-state.{k} is a string ({cs[k]!r}). It maps "
+                    "to a Swift `Date`; ActivityKit's push decoder needs a JSON number "
+                    "(Unix epoch seconds) and silently drops the entire push. "
+                    "See FINDINGS.md."
+                )
+        bad = _snake_keys(cs)
+        if bad:
+            raise PayloadError(
+                f"FATAL SHAPE: content-state has snake_case key(s) {bad}. S3's "
+                "ContentState is camelCase; ActivityKit does not convert and the "
+                "whole push fails to decode. Expected keys: "
+                f"{list(S3_CONTENT_STATE_KEYS)}. See FINDINGS.md."
+            )
+    attrs = aps.get("attributes")
+    if isinstance(attrs, dict):
+        bad = _snake_keys(attrs)
+        if bad:
+            raise PayloadError(
+                f"FATAL SHAPE: attributes has snake_case key(s) {bad}. S3's "
+                f"Attributes struct is camelCase {list(S3_ATTRIBUTES_KEYS)}. "
+                "See FINDINGS.md."
+            )
+
+
 def validate(payload: dict, push_type: PushType) -> list[str]:
     """Return a list of human-readable warnings; raise PayloadError on hard errors."""
     warnings: list[str] = []
@@ -80,6 +131,8 @@ def validate(payload: dict, push_type: PushType) -> list[str]:
         raise PayloadError(
             f"payload is {total} bytes; APNs limit is {MAX_PAYLOAD_BYTES}"
         )
+
+    check_fatal_shapes(payload, push_type)
 
     if push_type.topic_kind == "liveactivity":
         event = aps.get("event")
@@ -98,20 +151,18 @@ def validate(payload: dict, push_type: PushType) -> list[str]:
             raise PayloadError(f"content-state is {cs_bytes} bytes; limit {MAX_PAYLOAD_BYTES}")
         cs = aps.get("content-state")
         if isinstance(cs, dict):
-            for k in DATE_CONTENT_STATE_KEYS:
-                if isinstance(cs.get(k), str):
-                    raise PayloadError(
-                        f"content-state.{k} is a string ({cs[k]!r}). It maps to a "
-                        "Swift `Date`; ActivityKit's push decoder needs a JSON "
-                        "number (Unix epoch seconds) and silently drops the "
-                        "entire push otherwise. See FINDINGS.md."
-                    )
             for k, val in cs.items():
                 if k not in DATE_CONTENT_STATE_KEYS and isinstance(val, str) and _ISO8601_RE.match(val):
                     warnings.append(
                         f"content-state.{k} looks like a datetime string ({val!r}) — "
                         "if it maps to a Swift `Date`, send it as a number instead"
                     )
+            unknown = [k for k in cs if k not in S3_CONTENT_STATE_KEYS and "_" not in k]
+            if unknown:
+                warnings.append(
+                    f"content-state has key(s) not in S3's ContentState: {unknown} "
+                    "(fine if the installed app adds them; a typo otherwise)"
+                )
         if event == "start":
             if "attributes-type" not in aps or "attributes" not in aps:
                 raise PayloadError(

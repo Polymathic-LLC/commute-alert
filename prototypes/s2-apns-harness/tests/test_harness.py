@@ -172,6 +172,42 @@ def test_validate_rejects_string_date_field():
     payloads.validate(p, PUSH_TYPES["la-update"])
 
 
+def test_check_fatal_shapes_snake_case_content_state():
+    p = {"aps": {"event": "update", "timestamp": 1,
+                 "content-state": {"v": 1, "display_status": "on_time", "headline": "x",
+                                   "updated_at": 123}}}
+    with pytest.raises(payloads.PayloadError) as exc:
+        payloads.check_fatal_shapes(p, PUSH_TYPES["la-update"])
+    assert "snake_case" in str(exc.value)
+
+
+def test_check_fatal_shapes_snake_case_attributes():
+    p = {"aps": {"event": "start", "attributes-type": "CommuteActivityAttributes",
+                 "attributes": {"route_name": "x", "stop_name": "y"},
+                 "content-state": {"v": 1, "displayStatus": "on_time", "headline": "h",
+                                   "updatedAt": 1}}}
+    with pytest.raises(payloads.PayloadError) as exc:
+        payloads.check_fatal_shapes(p, PUSH_TYPES["la-start"])
+    assert "attributes" in str(exc.value) and "snake_case" in str(exc.value)
+
+
+def test_check_fatal_shapes_passes_clean_payloads():
+    for key in ("la-update", "la-start", "la-end"):
+        p = payloads.example_payload(key)
+        payloads.inject_timestamp(p)
+        payloads.check_fatal_shapes(p, PUSH_TYPES[key])  # must not raise
+    # non-LA types are a no-op
+    payloads.check_fatal_shapes(payloads.example_payload("alert"), PUSH_TYPES["alert"])
+
+
+def test_api_sender_runs_fatal_check_even_with_validation_off(fake_sender):
+    bad = {"aps": {"event": "update",
+                   "content-state": {"v": 1, "updatedAt": "2026-01-01T00:00:00Z"}}}
+    with pytest.raises(payloads.PayloadError):
+        fake_sender.send(type="la-update", token="dead", payload=bad,
+                         validate_payload=False, refresh_la_fields=False)
+
+
 def test_validate_warns_on_other_iso_datetime_string():
     p = {"aps": {"event": "update", "timestamp": 1,
                  "content-state": {"v": 1, "displayStatus": "on_time", "headline": "x",
