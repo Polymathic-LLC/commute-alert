@@ -1,8 +1,8 @@
 # S4 — morning device session
 
 One sitting. **Part A is 2 minutes and is time-sensitive — do it before touching anything
-else, including before unlocking the phone.** Parts B and C are ~20 minutes together and can
-happen any time after.
+else, including before unlocking the phone.** Parts B and C take about 35 minutes together and
+can happen any time after.
 
 Route questions and answers through the orchestrator, not to S4 directly.
 
@@ -22,9 +22,12 @@ first.
 | `S4-B3-ref2001` | | |
 
 **A2. For any card still present, read me its small bottom line.** It looks like
-`v1 · 5:11:53 PM`. **The time on that line is the measurement** — copy it exactly, including
-AM/PM. If a card shows a wildly wrong time (a date in 2057, say), that is the expected
-result for one of them, not a bug — it is precisely what we are trying to find out.
+`v1 · 5:11:53 PM`. **Copy it exactly** — the date and time on that line *are* the measurement,
+including AM/PM and including a year if one is shown.
+
+One of these cards is expected to show a wrong date and one a correct one, and **which is which
+is precisely what we do not know** — so please just transcribe what is there rather than
+deciding which looks right. A wrong date is a result, not a bug.
 
 **A3.** Did the no-push card disappear at around **00:44** last night? Anything you remember
 about when it went is useful, even "it was gone when I woke up".
@@ -67,7 +70,7 @@ and fine — Part A has already captured what mattered.
 
 ---
 
-## Part C — push-to-start reliability (~20 min, clock-driven)
+## Part C — push-to-start reliability (~25 min, clock-driven)
 
 This is the question the whole product rests on: can the backend start a Live Activity with
 no user interaction, whatever state the phone is in?

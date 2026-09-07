@@ -517,3 +517,50 @@ ISO-8601 string on every Live Activity send. Given F6, **that default now reintr
 payload defect on every call that relies on it**, and it does so invisibly, behind a 200. Any
 future caller must pass `refresh_la_fields=False` and supply a numeric date, or the default must
 change. Flagged to the orchestrator rather than edited directly, since the harness is S2's.
+
+---
+
+## F10 — Which epoch a numeric `Date` is read against: OPEN, and pre-registered here before either observation lands.
+
+F6 established that a Swift `Date` in a pushed `ContentState` must be a JSON **number**; an
+ISO-8601 string kills the whole push. It did **not** establish which epoch the number is read
+against, because both numeric arms rendered — they differ only in the *value* produced, and
+nobody has yet read a value.
+
+**This is live divergence, not a hypothetical.** S4's `e1_pts_conditions.py` sends seconds
+since **2001-01-01**. S2's harness default (b7cf51b) sends seconds since **1970**, matching
+`aps.timestamp`. Both render. They cannot both display the correct wall clock, and the gap is
+about 31 years.
+
+### Registered predictions, before A2 or E0 answers
+
+| If the decoder is… | `S4-B2-epoch` (Unix number) shows | `S4-B3-ref2001` (2001 number) shows |
+|---|---|---|
+| `.deferredToDate` — seconds since 2001 (JSONDecoder's default) | a date around **2057** | **6 Sep 2026, ~5:11 PM** — correct |
+| seconds since 1970 | **6 Sep 2026, ~5:11 PM** — correct | a date around **1995** |
+
+Exactly one card reads correct and one reads absurd. **Which is which is the answer**, and the
+two outcomes are cleanly separable — there is no result that is consistent with both.
+
+**Two independent instruments will report it**, and they should agree:
+- **A2**, the human transcribing a card's bottom line. Cheap, available now, but it is a small
+  line under a loading overlay.
+- **E0**, the instrumented build logging the *decoded* `updatedAt` as an ISO timestamp from
+  `contentUpdates`. Unambiguous, needs no interpretation, minutes once installed.
+
+If they disagree, the instrument wins and the disagreement is itself worth chasing.
+
+**A bias I introduced and then removed.** The runbook's A2 originally told the human that "a
+date in 2057" was the expected result — which is true only under the first hypothesis, and
+naming it in the question invites the answer. It now asks them to transcribe what is there and
+says explicitly that which card is wrong is what we do not know. Recorded because a leading
+question in a measurement instrument is the same class of defect as a payload that silently
+fails to decode: it produces a confident answer that was never actually measured.
+
+**Deliberately not guessing in the meantime.** Picking an epoch now to make the two senders
+agree would risk a second silent wrongness of the same family as F6 — renders fine, shows a
+nonsense date, nobody notices until a user sees it. The divergence is harmless for Part C,
+which reads card *names*, not dates, so nothing is blocked on it.
+
+**Confidence: none claimed. Open by design**, with the outcome table written down first so
+whichever answer arrives cannot be rationalised into the one I expected.
