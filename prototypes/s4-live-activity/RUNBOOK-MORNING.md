@@ -40,10 +40,11 @@ at the no-push card yesterday around 17:20 and saw real text under the loading s
 you remember what that text said?** As best you can, write down what you remember of it before
 reading the options below.
 
-If nothing comes back, these are the candidates it could have been:
+If nothing comes back, these are the candidates it could have been. **They are listed in no
+particular order, and both are equally plausible as far as this question is concerned:**
 
-- `Local start — no push involved`
-- `S4-E4 hb=001 elapsed=0h30m` (or a similar line with a different number)
+- `S4-E4 hb=001 elapsed=0h30m` — the numbers may have been different ones
+- `Local start — no push involved` — this one would have been word-for-word
 - something else — write down whatever you remember
 - **you genuinely don't remember**
 
