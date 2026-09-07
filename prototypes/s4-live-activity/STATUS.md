@@ -1,5 +1,5 @@
 STATUS: RUNNING
-Last updated: 2026-09-07 00:55 EDT
+Last updated: 2026-09-07 01:15 EDT
 Summary: E4 finished early and clean. The 8-hour cap is real and exact, and APNs DOES report a dead activity (`410 ExpiredToken`, timestamped to the second) — the half of the question that was genuinely in doubt, answered the good way. Push-to-start also resolved earlier: it works, and had been failing on one mis-encoded field. Five findings now closed. No measurement is running; nothing is consuming the device.
 
 ## Device state — for S5, and for the rebuild hold
@@ -44,11 +44,22 @@ that is now more valuable than it was:
 Data: `data/e4-heartbeats.ndjson` (27 rows), `data/e1b-date-encoding.ndjson`, `logs/e4.log`.
 All gitignored.
 
-## Next
+## Next — blocked only on the human, nothing left for S4 to build
 
-1. Wire `Activity.activityUpdates` token capture into `probe-app/` (the F4 fix), regenerate
-   with xcodegen, verify the build including the `plutil` installability gate S3 established.
-2. Then the instrumented install, E0 calibration, and the E1 push-to-start reliability session.
+**`RUNBOOK-MORNING.md` is written and ready to relay.** One sitting: Part A is 2 minutes and
+must happen *before* the phone is unlocked or rebuilt; Part B is the ~10-minute install;
+Part C is a clock-driven push-to-start session (force-quit / Low Power Mode /
+before-first-unlock / never-launched-this-boot) with a five-row log format.
+
+The instrumented build is **done and verified** — `probe-app/` compiles clean on the simulator
+and unsigned device slices with zero warnings, and passes S3's `plutil` installability gate on
+both the `.app` and the `.appex`. That gate is what caught yesterday's `CoreDeviceError 3000`,
+so it was run rather than trusting BUILD SUCCEEDED. Note for the relay: it is a **different
+`.xcodeproj` path** from yesterday's (`probe-app/S3Probe.xcodeproj`), same bundle ID and team,
+so signing needs no new setup.
+
+After the runbook: E0 calibration, E2 budget ramp, E3 collapse-id, E6 ending, E10 staleness,
+then E7 (Watch) once paired.
 
 ## Activity log
 
