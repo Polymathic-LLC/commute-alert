@@ -92,11 +92,73 @@ def payload_for(route: str, unix: int) -> dict:
     }
 
 
+def preflight() -> int:
+    """Prove Part C will actually send, before a human spends 35 minutes on it.
+
+    `e1_pts_conditions.py` imports `Sender` from S2's worktree, so S2's code is a
+    live dependency of a one-shot human session. S2 has since added
+    `check_fatal_shapes`, a hard raise that runs on every send even when
+    `validate_payload=False`. That guard is a good thing — it exists because of
+    F6/F9 — but a new unconditional raise landing in a shared dependency hours
+    before an unrepeatable session is exactly the kind of change that turns 35
+    minutes of someone's morning into nothing.
+
+    So: run the real payload through the real guards, offline, and also confirm
+    the guards still bite on the shapes they are meant to catch. A guard that has
+    silently stopped working is worse than no guard.
+    """
+    from apns_harness import payloads as s2_payloads
+
+    unix = int(time.time())
+    ok = True
+
+    print("Part C payloads through S2's check_fatal_shapes + validate:\n")
+    for _, route, cond, _ in TRIALS:
+        body = payload_for(route, unix)
+        try:
+            s2_payloads.check_fatal_shapes(body, s2_payloads.PUSH_TYPES["la-start"])
+            s2_payloads.validate(body, s2_payloads.PUSH_TYPES["la-start"])
+            print(f"  PASS  {route:<14} {cond}")
+        except Exception as exc:
+            ok = False
+            print(f"  FAIL  {route:<14} {type(exc).__name__}: {exc}")
+
+    # A guard that no longer bites is worse than no guard, so verify it still
+    # catches both shapes it was built for.
+    print("\nGuard still bites on the known-fatal shapes:")
+    for label, mutate in (
+        ("ISO-8601 string in updatedAt",
+         lambda b: b["aps"]["content-state"].update(updatedAt="2026-09-07T12:00:00Z")),
+        ("snake_case key in content-state",
+         lambda b: b["aps"]["content-state"].update(display_status="on_time")),
+        ("snake_case key in attributes",
+         lambda b: b["aps"]["attributes"].update(route_name="x")),
+    ):
+        body = payload_for("S4-E1-preflight", unix)
+        mutate(body)
+        try:
+            s2_payloads.check_fatal_shapes(body, s2_payloads.PUSH_TYPES["la-start"])
+            ok = False
+            print(f"  NOT CAUGHT  {label}  <-- guard is not working")
+        except Exception as exc:
+            print(f"  caught      {label}  ({type(exc).__name__})")
+
+    print("\nPREFLIGHT:", "OK — Part C is safe to run" if ok else "FAILED — do not run Part C")
+    return 0 if ok else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--start", required=True, help='"HH:MM" today, local time')
+    ap.add_argument("--start", help='"HH:MM" today, local time')
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--preflight", action="store_true",
+                    help="run the real payload through S2's guards, no network")
     args = ap.parse_args()
+
+    if args.preflight:
+        return preflight()
+    if not args.start:
+        ap.error("--start is required unless --preflight")
 
     now = dt.datetime.now(TZ)
     hh, mm = (int(x) for x in args.start.split(":"))
