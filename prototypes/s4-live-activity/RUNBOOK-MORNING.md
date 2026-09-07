@@ -79,34 +79,49 @@ wait on me and I never wait on you — just do each step at the stated time and 
 | Time | What you do |
 |---|---|
 | T+0:00 | Open S3 Probe, then swipe it away in the app switcher (**force-quit**). Lock the phone, put it down. |
-| T+3:00 | Wake the screen, don't unlock. Card present? Write the grey top line. |
+| T+3:00 | Wake the screen, don't unlock. **List every card name.** |
 | T+4:00 | Force-quit again if it's open. Lock. |
-| T+7:00 | Wake, don't unlock. Card present? Write the top line. |
+| T+7:00 | Wake, don't unlock. **List every card name.** |
 | T+8:00 | Turn **Low Power Mode** on (Settings → Battery). Force-quit the app. Lock. |
-| T+11:00 | Wake, don't unlock. Card present? Write the top line. |
+| T+11:00 | Wake, don't unlock. **List every card name.** |
 | T+12:00 | **Reboot the phone.** Do **not** unlock it after it restarts — leave it on the passcode screen. |
-| T+17:00 | Look at the Lock Screen, still without unlocking. Card present? Top line? |
+| T+17:00 | Look at the Lock Screen, still without unlocking. **List every card name.** |
 | T+18:00 | Now unlock once, but **do not open S3 Probe**. Lock again. |
-| T+21:00 | Wake, don't unlock. Card present? Top line? |
-| T+22:00 | Turn Low Power Mode back off. Open S3 Probe, tap **Refresh / snapshot**, then **Export log to Files**, then **End ALL activities**. |
+| T+21:00 | Wake, don't unlock. **List every card name.** |
+| T+22:00 | Turn Low Power Mode back off. Open S3 Probe, tap **Refresh / snapshot**, then **Export log to Files**. Then press home to background it (do **not** force-quit) and lock the phone. |
+| T+25:00 | Wake, don't unlock. **List every card name.** This is the baseline — see below. |
+| T+26:00 | Open S3 Probe and tap **End ALL activities**. Done. |
 
-Log format — one row per check, that's all:
+Log format — one row per check:
 
 ```
-T+3    card? yes/no    top line: ____________
-T+7    card? yes/no    top line: ____________
-T+11   card? yes/no    top line: ____________
-T+17   card? yes/no    top line: ____________
-T+21   card? yes/no    top line: ____________
+T+3    cards visible: ______________________________
+T+7    cards visible: ______________________________
+T+11   cards visible: ______________________________
+T+17   cards visible: ______________________________
+T+21   cards visible: ______________________________
+T+25   cards visible: ______________________________
 ```
 
-Each push carries a different name in the top line (`S4-E1-C2-t1` and so on), so the name
-tells me which push produced which card. **"A card is there" is not the answer — the name
-is.** A leftover card from an earlier step reads identically to a fresh one otherwise.
+**Please list *every* card name you can see, not just the newest one** — write `none` if there
+are none. Cards accumulate: a successful trial leaves its card on the Lock Screen, so by T+21
+there could be several. Each push carries a different name (`S4-E1-C2-t1`, `S4-E1-C5-t1`, …),
+so the list of names tells me exactly which trials worked. **"A card is there" is not the
+answer — the names are**, because a leftover card from an earlier step looks identical to a
+fresh one otherwise.
 
-**If a step shows no card, that is a result, not a mistake.** It is the single most valuable
-outcome this session can produce, so please write "no" plainly rather than retrying or
-waiting a bit longer.
+**If a step shows no new name, that is a result, not a mistake.** It is the single most
+valuable outcome this session can produce, so please write it plainly rather than retrying or
+waiting a bit longer to see if it turns up.
+
+### Why the odd extra step at T+25
+
+The last check is a **baseline**: the app has just been used and backgrounded normally, which
+is the easiest possible condition for a push to start an activity. It exists so that an
+all-negative run is still interpretable. If nothing works all session *including* the baseline,
+the problem is the device or the build and the conditions tell us nothing. If the baseline
+works and the others don't, then the conditions are the finding — and that finding would change
+the product. Three extra minutes buys the difference between an answer and a shrug.
 
 ---
 
