@@ -115,7 +115,7 @@ send, cannot be disabled, hard-raises on the two shapes proven fatal today
   The `refresh_updated_at` I added above wrote an ISO-8601 **string**, default
   on. S4's E1b proved on device: a Swift `Date` needs a JSON **number**; a
   string discards the whole push behind a 200. It corrupted every LA send,
-  including S4's E4 8h-cap run (26 heartbeats, all ISO — confirmed at the wire
+  including S4's E4 8h-cap run (27 sends: 25×200, 2×410, all ISO — confirmed at the wire
   level in send-history.jsonl). Fixed: `refresh_updated_at` → number;
   `example_payload()` + `payloads/*.json` numeric; `validate()` hard-rejects a
   string in a Date field + warns on ISO-looking strings; docstrings/README

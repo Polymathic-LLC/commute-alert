@@ -48,8 +48,8 @@ Answers as they are established. Confidence is stated per finding.
 > **This harness had `refresh_updated_at()` writing an ISO-8601 string, on by
 > default for every `liveactivity` send, on a since-disproven assumption about
 > Apple DTS guidance.** It corrupted every LA payload S2 or anyone driving the
-> harness sent. It cost S4's E4 — the 8-hour-cap run: all 26 heartbeats went
-> out ISO-encoded (confirmed at the wire level, records 12–38 of
+> harness sent. It cost S4's E4 — the 8-hour-cap run: all 27 sends (25 × `200`,
+> 2 × `410`) went out ISO-encoded (confirmed at the wire level, records 12–38 of
 > `send-history.jsonl`, which *does* log payload bodies), so the prediction is
 > that none reached the card. S4 has retracted "a stateless backend can drive
 > an activity by stored token" on that basis; the token-lifetime and `410`
@@ -148,8 +148,9 @@ Checked against payload bodies in `send-history.jsonl`, not from memory:
   their `200`s stand.
 - The wire-level bodies are in `send-history.jsonl` (it logs full payloads —
   this closes the "sent bytes not observable" gap the orchestrator flagged for
-  `e4.log`). E4 heartbeats = records 12–38; all show `"updatedAt": "<ISO
-  string>"`.
+  `e4.log`). E4 = records 12–38, **27 sends (25 × `200`, 2 × `410`)**; all show
+  `"updatedAt": "<ISO string>"`. (Earlier drafts of this file said "26" — S4
+  corrected the count, verified against this log.)
 
 Going forward: **S2 makes no self-initiated sends to that device for any
 reason**, including verifying its own code. Verification is `--dry-run` only, or
